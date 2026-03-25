@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handoff{% block title %}{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; }
+    nav { padding: 12px 24px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; display: flex; gap: 24px; align-items: center; }
+    nav a { color: #aaa; text-decoration: none; font-size: 14px; }
+    nav a:hover { color: #fff; }
+    nav .brand { font-weight: 700; color: #fff; font-size: 16px; }
+    main { padding: 32px 24px; max-width: 1100px; margin: 0 auto; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav>
+    <span class="brand">Handoff</span>
+    <a href="/zones">Zones</a>
+    <a href="/evidence">Evidence</a>
+  </nav>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

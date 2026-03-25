@@ -1,0 +1,12 @@
+opencv-python>=4.9
+numpy>=1.26
+anthropic>=0.25
+fpdf2>=2.7
+fastapi>=0.111
+uvicorn[standard]>=0.29
+jinja2>=3.1
+python-multipart>=0.0.9
+apscheduler>=3.10
+aiosqlite>=0.20
+pillow>=10.3
+python-dotenv>=1.0
