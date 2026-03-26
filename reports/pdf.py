@@ -1,18 +1,28 @@
 """PDF evidence report generator."""
 from __future__ import annotations
 from pathlib import Path
-from datetime import datetime
 from fpdf import FPDF
 import config
 
+FONT_PATH = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+FONT_BOLD_PATH = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+
+
+def _make_pdf() -> FPDF:
+    pdf = FPDF()
+    pdf.add_font("DejaVu", style="", fname=str(FONT_PATH))
+    pdf.add_font("DejaVu", style="B", fname=str(FONT_BOLD_PATH))
+    return pdf
+
 
 def generate_pdf(record: dict) -> Path:
-    pdf = FPDF()
+    pdf = _make_pdf()
     pdf.add_page()
-    pdf.set_font("Helvetica", "B", 16)
+
+    pdf.set_font("DejaVu", "B", 16)
     pdf.cell(0, 10, "Handoff — Evidence Report", ln=True)
 
-    pdf.set_font("Helvetica", "", 10)
+    pdf.set_font("DejaVu", "", 10)
     pdf.cell(0, 6, f"Record ID : {record['id']}", ln=True)
     pdf.cell(0, 6, f"Zone      : {record['zone_name']}", ln=True)
     pdf.cell(0, 6, f"Task      : {record['task_type']}", ln=True)
@@ -28,20 +38,20 @@ def generate_pdf(record: dict) -> Path:
 
     # Result summary
     result = record.get("result", {})
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, "Analysis", ln=True)
-    pdf.set_font("Helvetica", "", 10)
+    pdf.set_font("DejaVu", "", 10)
 
     summary = result.get("summary", "—")
     pdf.multi_cell(0, 6, summary)
     pdf.ln(2)
 
-    # Damage items if present
+    # Damage / anomaly items
     items = result.get("damage_items", []) or result.get("anomalies", [])
     if items:
-        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_font("DejaVu", "B", 10)
         pdf.cell(0, 6, "Items", ln=True)
-        pdf.set_font("Helvetica", "", 9)
+        pdf.set_font("DejaVu", "", 9)
         for item in items:
             line = " | ".join(f"{k}: {v}" for k, v in item.items())
             pdf.cell(0, 5, f"  • {line}", ln=True)

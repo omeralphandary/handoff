@@ -18,7 +18,7 @@ VLM_BACKEND: str = os.getenv("VLM_BACKEND", "local")
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 VLM_MODEL: str = os.getenv("VLM_MODEL", "claude-sonnet-4-6")
 
-LOCAL_MODEL: str = os.getenv("LOCAL_MODEL", "qwen2-vl:7b")
+LOCAL_MODEL: str = os.getenv("LOCAL_MODEL", "llava:7b")
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 DASHBOARD_HOST: str = os.getenv("DASHBOARD_HOST", "0.0.0.0")
