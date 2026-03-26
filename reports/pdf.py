@@ -36,25 +36,38 @@ def generate_pdf(record: dict) -> Path:
         pdf.image(image_path, w=180)
         pdf.ln(4)
 
-    # Result summary
+    # Result
     result = record.get("result", {})
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Analysis", ln=True)
-    pdf.set_font("DejaVu", "", 10)
+    score = result.get("condition_score")
+    passed = result.get("passed", not record.get("flagged"))
 
-    summary = result.get("summary", "—")
-    pdf.multi_cell(0, 6, summary)
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.cell(0, 8, "Condition Assessment", ln=True)
+    pdf.set_font("DejaVu", "", 11)
+
+    verdict = "PASS" if passed else f"FAIL  (score {score}/5)"
+    pdf.cell(0, 8, f"Result  : {verdict}", ln=True)
+    if score is not None:
+        pdf.cell(0, 6, f"Score   : {score} / 5", ln=True)
     pdf.ln(2)
 
-    # Damage / anomaly items
-    items = result.get("damage_items", []) or result.get("anomalies", [])
-    if items:
-        pdf.set_font("DejaVu", "B", 10)
-        pdf.cell(0, 6, "Items", ln=True)
-        pdf.set_font("DejaVu", "", 9)
-        for item in items:
-            line = " | ".join(f"{k}: {v}" for k, v in item.items())
-            pdf.cell(0, 5, f"  • {line}", ln=True)
+    if not passed:
+        summary = result.get("summary", "")
+        if summary:
+            pdf.set_font("DejaVu", "B", 10)
+            pdf.cell(0, 6, "Description", ln=True)
+            pdf.set_font("DejaVu", "", 10)
+            pdf.multi_cell(0, 6, summary)
+            pdf.ln(2)
+
+        items = result.get("damage_items", []) or result.get("anomalies", [])
+        if items:
+            pdf.set_font("DejaVu", "B", 10)
+            pdf.cell(0, 6, "Defects", ln=True)
+            pdf.set_font("DejaVu", "", 9)
+            for item in items:
+                line = " | ".join(f"{k}: {v}" for k, v in item.items())
+                pdf.cell(0, 5, f"  * {line}", ln=True)
 
     out_path = config.REPORTS_DIR / f"{record['id']}.pdf"
     out_path.parent.mkdir(parents=True, exist_ok=True)

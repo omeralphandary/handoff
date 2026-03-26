@@ -46,7 +46,12 @@ class LocalStore(BaseStore):
         image_path = self.images_dir / f"{record_id}.jpg"
         cv2.imwrite(str(image_path), frame)
 
-        flagged = bool(result.get("damage_detected") or result.get("anomaly_detected"))
+        # documentation task uses condition_score; inspection uses anomaly_detected
+        score = result.get("condition_score")
+        flagged = bool(
+            (score is not None and score < 5)
+            or result.get("anomaly_detected")
+        )
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(

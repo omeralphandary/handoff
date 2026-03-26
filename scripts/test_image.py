@@ -73,12 +73,14 @@ async def run(image_path: Path, task: str) -> None:
         image_dest = config.IMAGES_DIR / f"{record_id}.jpg"
         cv2.imwrite(str(image_dest), frame)
 
+        score = result.get("condition_score")
+        flagged = (score is not None and score < 5) or result.get("damage_detected", False)
         record = {
             "id": record_id,
             "zone_name": "test-zone",
             "task_type": task,
             "timestamp": datetime.utcnow().isoformat(),
-            "flagged": result.get("damage_detected", False),
+            "flagged": flagged,
             "image_path": str(image_dest),
             "result": result,
         }
