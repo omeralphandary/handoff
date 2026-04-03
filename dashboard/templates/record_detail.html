@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %} — Record {{ record.id[:8] }}{% endblock %}
+{% block page_title %}Record {{ record.id[:8] }}{% endblock %}
+{% block page_actions %}
+  <a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Back</a>
+  {% if record.pdf_path %}
+  <a href="/records/{{ record.id }}/pdf" class="btn btn-secondary btn-sm">Download PDF</a>
+  {% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+  .record-wrap { max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+  .record-image img { width: 100%; border-radius: 8px; display: block; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; font-weight: 600; }
+  .meta-value { color: #d4d4d4; }
+  .result-section { margin-top: 4px; }
+  .result-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; font-weight: 600; margin-bottom: 12px; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .result-table td { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; vertical-align: top; }
+  .result-table td:first-child { color: #666; width: 160px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 3px 8px; font-size: 12px; color: #aaa; }
+  .identifier-row { display: flex; gap: 8px; align-items: baseline; }
+  .identifier-label { color: #666; font-size: 11px; }
+  .summary-text { color: #aaa; line-height: 1.6; font-size: 13px; }
+  .score-badge { font-size: 22px; font-weight: 700; }
+  .score-high { color: #22c55e; }
+  .score-mid  { color: #f59e0b; }
+  .score-low  { color: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set res = record.result %}
+<div class="record-wrap">
+
+  {% if record.image_path %}
+  <div class="card record-image">
+    <img src="/static/images/{{ record.image_path.split('/')[-1] }}" alt="Captured frame"
+         onerror="this.parentElement.style.display='none'">
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span class="meta-label">Zone</span>
+        <span class="meta-value">{{ record.zone_name }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Task</span>
+        <span class="meta-value">{{ record.task_type }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Timestamp</span>
+        <span class="meta-value">{{ record.timestamp[:19].replace('T', ' ') }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Status</span>
+        <span class="meta-value">{% if record.flagged %}⚠ Flagged{% else %}✓ Pass{% endif %}</span>
+      </div>
+      {% if res._model is defined %}
+      <div class="meta-item">
+        <span class="meta-label">Model</span>
+        <span class="meta-value" style="font-family:monospace;font-size:12px;">
+          {{ res._model }}{% if res._backend is defined and res._backend == 'anthropic_fallback' %} <span style="color:#f59e0b;">(fallback)</span>{% endif %}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card result-section">
+    <h3>Result</h3>
+    <table class="result-table">
+
+      {% if res.condition_score is defined %}
+      <tr>
+        <td>Condition</td>
+        <td><span class="score-badge {% if res.condition_score >= 4 %}score-high{% elif res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">{{ res.condition_score }}/5</span></td>
+      </tr>
+      {% endif %}
+
+      {% if res.safety_status is defined %}
+      <tr>
+        <td>Safety</td>
+        <td>
+          <span style="font-weight:600;{% if res.safety_status == 'stable' %}color:#22c55e;{% elif res.safety_status == 'at_risk' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
+            {{ res.safety_status | replace('_', ' ') | upper }}
+          </span>
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.safety_notes is defined and res.safety_notes %}
+      <tr>
+        <td>Safety notes</td>
+        <td>
+          {% for n in res.safety_notes %}
+          <div style="margin-bottom:4px;">
+            <span style="color:#aaa;">{{ n.object }}</span> — {{ n.issue }}
+            <span style="color:#666;"> ({{ n.severity }})</span>
+          </div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.hazards is defined and res.hazards %}
+      <tr>
+        <td>Hazards</td>
+        <td>
+          {% for h in res.hazards %}
+          <div style="margin-bottom:4px;color:#f87171;">
+            {{ h.type }} <span style="color:#666;">({{ h.severity }})</span>
+          </div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.damage_items is defined and res.damage_items %}
+      <tr>
+        <td>Damage</td>
+        <td>
+          {% for d in res.damage_items %}
+          <div style="margin-bottom:4px;">{{ d.location }} — {{ d.type }} <span style="color:#666;">({{ d.severity }})</span></div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.cargo_type is defined %}
+      <tr>
+        <td>Cargo type</td>
+        <td>{{ res.cargo_type }} <span style="color:#666;">({{ res.confidence }})</span>{% if res.count %} · {{ res.count }} units{% endif %}</td>
+      </tr>
+      {% endif %}
+
+      {% if res.texts is defined and res.texts %}
+      <tr>
+        <td>Text</td>
+        <td><div class="tag-list">{% for t in res.texts %}<span class="tag">{{ t }}</span>{% endfor %}</div></td>
+      </tr>
+      {% endif %}
+
+      {% if res.barcodes is defined and res.barcodes %}
+      <tr>
+        <td>Barcodes</td>
+        <td><div class="tag-list">{% for b in res.barcodes %}<span class="tag">{{ b }}</span>{% endfor %}</div></td>
+      </tr>
+      {% endif %}
+
+      {% if res.identifiers is defined and res.identifiers %}
+      <tr>
+        <td>Identifiers</td>
+        <td>
+          {% for i in res.identifiers %}
+          <div class="identifier-row"><span class="identifier-label">{{ i.label }}</span> {{ i.value }}</div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.anomaly_detected is defined %}
+      <tr>
+        <td>Anomaly</td>
+        <td>{% if res.anomaly_detected %}⚠ Yes{% else %}None{% endif %}</td>
+      </tr>
+      {% endif %}
+
+      {% if res.anomalies is defined and res.anomalies %}
+      <tr>
+        <td>Anomalies</td>
+        <td>
+          {% for a in res.anomalies %}
+          <div style="margin-bottom:4px;">{{ a.description }} <span style="color:#666;">({{ a.severity }})</span></div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endif %}
+
+      {% if res.summary is defined %}
+      <tr>
+        <td>Summary</td>
+        <td><span class="summary-text">{{ res.summary }}</span></td>
+      </tr>
+      {% elif res.notes is defined %}
+      <tr>
+        <td>Notes</td>
+        <td><span class="summary-text">{{ res.notes }}</span></td>
+      </tr>
+      {% endif %}
+
+    </table>
+  </div>
+
+</div>
+{% endblock %}

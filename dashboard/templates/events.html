@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %} — Events{% endblock %}
+
+{% block head %}
+<style>
+  .event-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .event-card {
+    background: #161616;
+    border: 1px solid #2a1a1a;
+    border-left: 3px solid #ef4444;
+    border-radius: 10px;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: start;
+  }
+  .event-card:hover { background: #181414; }
+
+  .event-left { display: flex; flex-direction: column; gap: 8px; }
+  .event-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .event-zone { font-weight: 600; font-size: 15px; color: #f0f0f0; }
+  .event-ts { font-size: 12px; color: #444; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+  .score { font-weight: 700; font-size: 15px; }
+  .score-mid { color: #facc15; }
+  .score-low { color: #f87171; }
+
+  .event-summary { font-size: 14px; color: #777; line-height: 1.6; }
+
+  .event-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-top: 2px; }
+  .pdf-link { color: #60a5fa; font-size: 13px; text-decoration: none; white-space: nowrap; }
+  .pdf-link:hover { text-decoration: underline; }
+  .no-pdf { color: #333; font-size: 13px; }
+
+  .empty-card {
+    background: #141414;
+    border: 1px solid #1e1e1e;
+    border-radius: 10px;
+    padding: 64px 32px;
+    text-align: center;
+  }
+  .empty-card .check { font-size: 28px; color: #333; margin-bottom: 12px; }
+  .empty-card p { color: #444; font-size: 15px; margin-bottom: 16px; }
+  .empty-card a { color: #60a5fa; text-decoration: none; font-size: 14px; }
+  .empty-card a:hover { text-decoration: underline; }
+
+  .stat strong { color: #f87171; }
+</style>
+{% endblock %}
+
+{% block page_title %}Events{% endblock %}
+{% block page_actions %}
+  <form class="filter-bar" method="get" action="/events" style="margin:0;">
+    <select id="zone_id" name="zone_id" style="font-size:13px;padding:6px 10px;">
+      <option value="">All zones</option>
+      {% for z in zones %}
+      <option value="{{ z.id }}" {% if selected_zone == z.id %}selected{% endif %}>{{ z.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    {% if selected_zone %}<a href="/events" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+  </form>
+{% endblock %}
+
+{% block content %}
+
+{% if events %}
+<div class="summary-bar">
+  <div class="stat"><strong>{{ events | length }}</strong> flagged events</div>
+</div>
+
+<div class="event-list">
+  {% for e in events %}
+  {% set res = e.result %}
+  <div class="event-card">
+    <div class="event-left">
+      <div class="event-header">
+        <span class="event-zone">{{ e.zone_name }}</span>
+        <span class="badge {% if e.task_type == 'documentation' %}badge-doc{% elif e.task_type == 'ocr' %}badge-ocr{% elif e.task_type == 'inspection' %}badge-insp{% elif e.task_type == 'classification' %}badge-class{% endif %}">{{ e.task_type }}</span>
+        <span class="badge badge-fail">flagged</span>
+        {% if res.condition_score is defined %}
+          <span class="score {% if res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">{{ res.condition_score }}/5</span>
+        {% endif %}
+      </div>
+      <div class="event-ts">{{ e.timestamp[:19].replace('T', ' ') }} UTC</div>
+      {% if res.summary is defined %}
+      <div class="event-summary">{{ res.summary }}</div>
+      {% elif res.findings is defined %}
+      <div class="event-summary">{{ res.findings }}</div>
+      {% endif %}
+    </div>
+    <div class="event-right">
+      {% if e.pdf_path %}
+      <a class="pdf-link" href="/records/{{ e.id }}/pdf">Download PDF</a>
+      {% else %}
+      <span class="no-pdf">No PDF</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+  <span class="pagination-info">{{ total }} events · page {{ page }} of {{ total_pages }}</span>
+  <a class="page-btn {% if page <= 1 %}disabled{% endif %}"
+     href="?{% if selected_zone %}zone_id={{ selected_zone }}&{% endif %}page={{ page - 1 }}">←</a>
+  {% for p in range(1, total_pages + 1) %}
+    {% if p == page or (p >= page - 2 and p <= page + 2) or p == 1 or p == total_pages %}
+      {% if p != page and loop.previtem is defined and loop.previtem != p - 1 %}
+        <span class="page-btn disabled">…</span>
+      {% endif %}
+      <a class="page-btn {% if p == page %}active{% endif %}"
+         href="?{% if selected_zone %}zone_id={{ selected_zone }}&{% endif %}page={{ p }}">{{ p }}</a>
+    {% endif %}
+  {% endfor %}
+  <a class="page-btn {% if page >= total_pages %}disabled{% endif %}"
+     href="?{% if selected_zone %}zone_id={{ selected_zone }}&{% endif %}page={{ page + 1 }}">→</a>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-card">
+  <div class="check">✓</div>
+  <p>No flagged events{% if selected_zone %} for this zone{% endif %}.</p>
+  <a href="/records{% if selected_zone %}?zone_id={{ selected_zone }}{% endif %}">View all records →</a>
+</div>
+{% endif %}
+{% endblock %}

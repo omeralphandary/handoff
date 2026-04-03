@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% set first = records[0] %}
+{% block title %} — Capture {{ capture_id[:8] }}{% endblock %}
+{% block page_title %}Capture {{ capture_id[:8] }}{% endblock %}
+{% block page_actions %}
+  <a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Back</a>
+{% endblock %}
+
+{% block head %}
+<style>
+  .capture-wrap { max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+  .capture-image img { width: 100%; border-radius: 8px; display: block; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; font-weight: 600; }
+  .meta-value { color: #d4d4d4; }
+
+  /* Tab bar */
+  .tab-bar {
+    display: flex; gap: 4px; border-bottom: 1px solid #1e1e1e;
+    margin-bottom: 16px;
+  }
+  .tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: #555; font-size: 13px; font-weight: 500; padding: 8px 14px;
+    cursor: pointer; transition: color 0.15s; margin-bottom: -1px;
+  }
+  .tab:hover { color: #aaa; }
+  .tab.active { color: #d4d4d4; border-bottom-color: #60a5fa; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* Result table */
+  .result-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; font-weight: 600; margin-bottom: 12px; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .result-table td { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; vertical-align: top; }
+  .result-table td:first-child { color: #666; width: 160px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 3px 8px; font-size: 12px; color: #aaa; }
+  .identifier-row { display: flex; gap: 8px; align-items: baseline; }
+  .identifier-label { color: #666; font-size: 11px; }
+  .summary-text { color: #aaa; line-height: 1.6; font-size: 13px; }
+  .score-badge { font-size: 22px; font-weight: 700; }
+  .score-high { color: #22c55e; }
+  .score-mid  { color: #f59e0b; }
+  .score-low  { color: #ef4444; }
+  .pdf-link { color: #60a5fa; font-size: 13px; text-decoration: none; }
+  .pdf-link:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="capture-wrap">
+
+  {% if first.image_path %}
+  <div class="card capture-image">
+    <img src="/static/images/{{ first.image_path.split('/')[-1] }}" alt="Captured frame"
+         onerror="this.parentElement.style.display='none'">
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span class="meta-label">Zone</span>
+        <span class="meta-value">{{ first.zone_name }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Timestamp</span>
+        <span class="meta-value">{{ first.timestamp[:19].replace('T', ' ') }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Tasks</span>
+        <span class="meta-value" style="display:flex;gap:4px;flex-wrap:wrap;">
+          {% for r in records %}
+          <span class="badge {% if r.task_type == 'documentation' %}badge-doc{% elif r.task_type == 'ocr' %}badge-ocr{% elif r.task_type == 'inspection' %}badge-insp{% elif r.task_type == 'classification' %}badge-class{% endif %}">{{ r.task_type }}</span>
+          {% endfor %}
+        </span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Overall Status</span>
+        <span class="meta-value">
+          {% if records | selectattr('flagged') | list %}
+          <span class="badge badge-fail">flagged</span>
+          {% else %}
+          <span class="badge badge-pass">pass</span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card result-section">
+    <div class="tab-bar">
+      {% for r in records %}
+      <button class="tab {% if loop.first %}active{% endif %}"
+              onclick="showTab('{{ r.task_type }}-{{ r.id[:8] }}', this)">
+        {{ r.task_type | capitalize }}
+        {% if r.flagged %}<span style="color:#f87171;margin-left:4px;">!</span>{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+
+    {% for r in records %}
+    {% set res = r.result %}
+    <div id="tab-{{ r.task_type }}-{{ r.id[:8] }}" class="tab-pane {% if loop.first %}active{% endif %}">
+
+      {% if r.pdf_path %}
+      <div style="margin-bottom:12px;">
+        <a class="pdf-link" href="/records/{{ r.id }}/pdf">Download PDF report</a>
+      </div>
+      {% endif %}
+
+      <table class="result-table">
+
+        {% if res.condition_score is defined %}
+        <tr>
+          <td>Condition</td>
+          <td><span class="score-badge {% if res.condition_score >= 4 %}score-high{% elif res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">{{ res.condition_score }}/5</span></td>
+        </tr>
+        {% endif %}
+
+        {% if res.safety_status is defined %}
+        <tr>
+          <td>Safety</td>
+          <td>
+            <span style="font-weight:600;{% if res.safety_status == 'stable' %}color:#22c55e;{% elif res.safety_status == 'at_risk' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
+              {{ res.safety_status | replace('_', ' ') | upper }}
+            </span>
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.safety_notes is defined and res.safety_notes %}
+        <tr>
+          <td>Safety notes</td>
+          <td>
+            {% for n in res.safety_notes %}
+            <div style="margin-bottom:4px;">
+              <span style="color:#aaa;">{{ n.object }}</span> — {{ n.issue }}
+              <span style="color:#666;"> ({{ n.severity }})</span>
+            </div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.hazards is defined and res.hazards %}
+        <tr>
+          <td>Hazards</td>
+          <td>
+            {% for h in res.hazards %}
+            <div style="margin-bottom:4px;color:#f87171;">
+              {{ h.type }} <span style="color:#666;">({{ h.severity }})</span>
+            </div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.damage_items is defined and res.damage_items %}
+        <tr>
+          <td>Damage</td>
+          <td>
+            {% for d in res.damage_items %}
+            <div style="margin-bottom:4px;">{{ d.location }} — {{ d.type }} <span style="color:#666;">({{ d.severity }})</span></div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.cargo_type is defined %}
+        <tr>
+          <td>Cargo type</td>
+          <td>{{ res.cargo_type }} <span style="color:#666;">({{ res.confidence }})</span>{% if res.count %} · {{ res.count }} units{% endif %}</td>
+        </tr>
+        {% endif %}
+
+        {% if res.texts is defined and res.texts %}
+        <tr>
+          <td>Text</td>
+          <td><div class="tag-list">{% for t in res.texts %}<span class="tag">{{ t }}</span>{% endfor %}</div></td>
+        </tr>
+        {% endif %}
+
+        {% if res.barcodes is defined and res.barcodes %}
+        <tr>
+          <td>Barcodes</td>
+          <td><div class="tag-list">{% for b in res.barcodes %}<span class="tag">{{ b }}</span>{% endfor %}</div></td>
+        </tr>
+        {% endif %}
+
+        {% if res.identifiers is defined and res.identifiers %}
+        <tr>
+          <td>Identifiers</td>
+          <td>
+            {% for i in res.identifiers %}
+            <div class="identifier-row"><span class="identifier-label">{{ i.label }}</span> {{ i.value }}</div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.anomaly_detected is defined %}
+        <tr>
+          <td>Anomaly</td>
+          <td>{% if res.anomaly_detected %}⚠ Yes{% else %}None{% endif %}</td>
+        </tr>
+        {% endif %}
+
+        {% if res.anomalies is defined and res.anomalies %}
+        <tr>
+          <td>Anomalies</td>
+          <td>
+            {% for a in res.anomalies %}
+            <div style="margin-bottom:4px;">{{ a.description }} <span style="color:#666;">({{ a.severity }})</span></div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res._model is defined %}
+        <tr>
+          <td>Model</td>
+          <td style="font-family:monospace;font-size:12px;">
+            {{ res._model }}{% if res._backend is defined and res._backend == 'anthropic_fallback' %} <span style="color:#f59e0b;">(fallback)</span>{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {% if res.summary is defined %}
+        <tr>
+          <td>Summary</td>
+          <td><span class="summary-text">{{ res.summary }}</span></td>
+        </tr>
+        {% elif res.notes is defined %}
+        <tr>
+          <td>Notes</td>
+          <td><span class="summary-text">{{ res.notes }}</span></td>
+        </tr>
+        {% endif %}
+
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function showTab(id, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+{% endblock %}

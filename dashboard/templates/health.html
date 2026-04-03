@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %} — Health{% endblock %}
+
+{% block head %}
+<style>
+  .health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .panel {
+    background: #161616;
+    border: 1px solid #242424;
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .panel.ok   { border-top: 2px solid #22c55e; }
+  .panel.warn { border-top: 2px solid #f59e0b; }
+  .panel.bad  { border-top: 2px solid #ef4444; }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #555;
+    margin-bottom: 14px;
+  }
+
+  .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green  { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+  .dot-yellow { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
+  .dot-red    { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+
+  .status-label { font-size: 14px; font-weight: 500; color: #e0e0e0; }
+  .status-sub   { font-size: 13px; color: #555; }
+
+  .kv-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; }
+  .kv-key { font-size: 13px; color: #555; }
+  .kv-val { font-size: 13px; color: #ccc; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+  /* Disk bar */
+  .disk-bar-wrap { margin: 14px 0 10px; }
+  .disk-bar-track { background: #222; border-radius: 3px; height: 6px; overflow: hidden; }
+  .disk-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .disk-bar-fill.ok   { background: #22c55e; }
+  .disk-bar-fill.warn { background: #f59e0b; }
+  .disk-bar-fill.bad  { background: #ef4444; }
+  .disk-bar-label { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #555; }
+
+  /* Zone table */
+  .zone-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  .zone-table th { text-align: left; padding: 8px 10px; color: #444; font-size: 11px;
+                   font-weight: 500; border-bottom: 1px solid #1e1e1e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .zone-table td { padding: 9px 10px; border-bottom: 1px solid #1a1a1a; }
+  .zone-table tr:last-child td { border-bottom: none; }
+
+  .models-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .model-chip {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #666;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .model-chip.active { border-color: #3b82f6; color: #60a5fa; background: #1e3a5f; }
+</style>
+{% endblock %}
+
+{% block page_title %}System Health{% endblock %}
+
+{% block content %}
+
+<div class="health-grid">
+
+  <!-- VLM Backend -->
+  <div class="panel {% if vlm.ok %}ok{% else %}bad{% endif %}">
+    <div class="panel-title">VLM Backend</div>
+    <div class="status-row">
+      <span class="dot {% if vlm.ok %}dot-green{% else %}dot-red{% endif %}"></span>
+      <span class="status-label">{{ vlm.backend }}</span>
+    </div>
+    <div class="kv-list">
+      <div class="kv">
+        <span class="kv-key">Model</span>
+        <span class="kv-val">{{ vlm.model }}</span>
+      </div>
+      <div class="kv">
+        <span class="kv-key">Status</span>
+        <span class="kv-val" style="color: {% if vlm.ok %}#4ade80{% else %}#f87171{% endif %}">{{ vlm.status }}</span>
+      </div>
+    </div>
+    {% if vlm.available_models is defined %}
+    <div class="models-list">
+      {% for m in vlm.available_models %}
+      <span class="model-chip {% if vlm.model in m %}active{% endif %}">{{ m }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Disk -->
+  {% set disk_cls = 'ok' if disk.pct < 70 else ('warn' if disk.pct < 85 else 'bad') %}
+  <div class="panel {{ disk_cls }}">
+    <div class="panel-title">Disk Usage</div>
+    <div class="status-row">
+      <span class="dot dot-{% if disk.pct < 70 %}green{% elif disk.pct < 85 %}yellow{% else %}red{% endif %}"></span>
+      <span class="status-label">{{ disk.pct }}% used</span>
+    </div>
+    <div class="disk-bar-wrap">
+      <div class="disk-bar-track">
+        <div class="disk-bar-fill {{ disk_cls }}" style="width: {{ disk.pct }}%"></div>
+      </div>
+      <div class="disk-bar-label">
+        <span>{{ disk.used_gb }} GB used</span>
+        <span>{{ disk.free_gb }} GB free / {{ disk.total_gb }} GB total</span>
+      </div>
+    </div>
+    <div class="kv-list">
+      <div class="kv">
+        <span class="kv-key">Captured images</span>
+        <span class="kv-val">{{ data.images_count }} ({{ data.images_mb }} MB)</span>
+      </div>
+      <div class="kv">
+        <span class="kv-key">PDF reports</span>
+        <span class="kv-val">{{ data.reports_count }} ({{ data.reports_mb }} MB)</span>
+      </div>
+      <div class="kv">
+        <span class="kv-key">Baselines stored</span>
+        <span class="kv-val">{{ data.baselines_count }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zones -->
+  {% set zones_ok = active_count > 0 or zones | length == 0 %}
+  <div class="panel {% if zones | length == 0 %}warn{% elif active_count > 0 %}ok{% else %}warn{% endif %}">
+    <div class="panel-title">Zones</div>
+    <div class="status-row">
+      <span class="dot {% if active_count > 0 %}dot-green{% else %}dot-yellow{% endif %}"></span>
+      <span class="status-label">{{ active_count }} / {{ zones | length }} active</span>
+    </div>
+    {% if zones %}
+    <table class="zone-table">
+      <thead>
+        <tr>
+          <th>Zone</th>
+          <th>Tasks</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for z in zones %}
+        <tr>
+          <td style="color:#ccc;">{{ z.name }}</td>
+          <td>
+            {% for t in z.task_types %}
+            <span class="badge {% if t == 'documentation' %}badge-doc{% elif t == 'ocr' %}badge-ocr{% elif t == 'inspection' %}badge-insp{% elif t == 'classification' %}badge-class{% endif %}" style="font-size:11px;">{{ t[:3] }}</span>
+            {% endfor %}
+          </td>
+          <td>
+            <span class="badge {% if z.active %}badge-active{% else %}badge-inactive{% endif %}">
+              {% if z.active %}active{% else %}idle{% endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="color:#444;font-size:13px;margin-top:8px;">No zones configured yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

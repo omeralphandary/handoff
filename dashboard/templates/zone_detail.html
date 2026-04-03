@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %} — {{ zone.name }}{% endblock %}
+{% block page_title %}{{ zone.name }}{% endblock %}
+{% block page_actions %}
+  {% if zone.active %}
+  <form method="post" action="/zones/{{ zone.id }}/stop" style="display:inline;">
+    <button type="submit" class="btn btn-warn btn-sm">Stop</button>
+  </form>
+  {% else %}
+  <form method="post" action="/zones/{{ zone.id }}/start" style="display:inline;">
+    <button type="submit" class="btn btn-success btn-sm">Start</button>
+  </form>
+  {% endif %}
+  {% if zone.active %}
+  {% if zone.trigger_mode == 'manual' %}
+  <form method="post" action="/zones/{{ zone.id }}/trigger" style="display:inline;" id="capture-form">
+    <button type="submit" class="btn btn-primary btn-sm" id="capture-btn">Capture Now</button>
+  </form>
+  {% endif %}
+  <button class="btn btn-secondary btn-sm" onclick="openCameraSettings()">Camera Settings</button>
+  <a href="/zones/{{ zone.id }}/stream" target="_blank" class="btn btn-secondary btn-sm">Live View</a>
+  {% endif %}
+  <a href="/zones/{{ zone.id }}/edit" class="btn btn-secondary btn-sm">Edit</a>
+{% endblock %}
+
+{% block head %}
+<style>
+  .zone-info-row {
+    display: flex; gap: 24px; align-items: center;
+    padding-bottom: 20px; margin-bottom: 24px;
+    border-bottom: 1px solid #1a1a1a;
+    flex-wrap: wrap;
+  }
+  .zone-url { font-size: 13px; color: #444; font-family: 'SF Mono', monospace; flex: 1; min-width: 0;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .records-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .records-table th {
+    text-align: left; padding: 10px 14px; color: #444; font-size: 11px;
+    font-weight: 500; border-bottom: 1px solid #1e1e1e;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .records-table td { padding: 12px 14px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+  .records-table tr:hover td { background: #141414; }
+  .records-table tr.flagged td { border-left: 2px solid #ef444460; }
+  .records-table tr.flagged td:first-child { padding-left: 12px; }
+  .summary-note { color: #555; font-size: 13px; margin-left: 8px; }
+  .pdf-link { color: #60a5fa; font-size: 13px; text-decoration: none; }
+  .pdf-link:hover { text-decoration: underline; }
+  .no-pdf { color: #333; font-size: 13px; }
+
+  /* Camera settings modal */
+  .cam-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .cam-overlay.open { display: flex; }
+  .cam-modal {
+    background: #0d0d0d; border: 1px solid #222; border-radius: 10px;
+    width: 1050px; max-width: 96vw; max-height: 92vh;
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .cam-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid #1a1a1a;
+  }
+  .cam-modal-header h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .cam-modal-body { display: flex; gap: 0; }
+  .cam-preview {
+    width: 480px; min-width: 480px; background: #000;
+    border-right: 1px solid #1a1a1a; display: flex; flex-direction: column;
+    align-items: center; padding: 16px; gap: 12px;
+  }
+  .cam-preview-wrap {
+    width: 100%; overflow: hidden; border-radius: 6px; background: #111;
+    min-height: 270px; cursor: grab; position: relative;
+  }
+  .cam-preview-wrap:active { cursor: grabbing; }
+  .cam-preview img { width: 100%; display: block; transform-origin: 0 0; transition: none; user-select: none; }
+  .cam-controls { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .cam-section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #555; font-weight: 600; margin: 14px 0 10px;
+  }
+  .cam-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .cam-row label { font-size: 13px; color: #aaa; width: 90px; flex-shrink: 0; }
+  .cam-row input[type=range] { flex: 1; accent-color: #60a5fa; cursor: pointer; }
+  .cam-row .val { font-size: 12px; color: #555; width: 28px; text-align: right; }
+  .cam-row select {
+    background: #111; color: #ccc; border: 1px solid #333;
+    padding: 5px 10px; border-radius: 4px; font-size: 13px;
+  }
+  .cam-toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .cam-toggle-row label { font-size: 13px; color: #aaa; width: 90px; flex-shrink: 0; }
+  .toggle-btn {
+    padding: 4px 14px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    border: 1px solid #333; background: #111; color: #666;
+  }
+  .toggle-btn.active { background: #1d4ed8; border-color: #2563eb; color: #fff; }
+  .cam-divider { border: none; border-top: 1px solid #1a1a1a; margin: 6px 0; }
+  .close-btn {
+    background: none; border: none; color: #555; font-size: 20px;
+    cursor: pointer; line-height: 1; padding: 0;
+  }
+  .close-btn:hover { color: #ccc; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="zone-info-row">
+  <div class="zone-url" title="{{ zone.camera_url }}">{{ zone.camera_url }}</div>
+  <div style="display:flex;gap:6px;">
+    {% for t in zone.task_types %}
+    <span class="badge {% if t == 'documentation' %}badge-doc{% elif t == 'ocr' %}badge-ocr{% elif t == 'inspection' %}badge-insp{% elif t == 'classification' %}badge-class{% endif %}">{{ t }}</span>
+    {% endfor %}
+  </div>
+  <span class="badge {% if zone.active %}badge-active{% else %}badge-inactive{% endif %}">
+    {% if zone.active %}active{% else %}inactive{% endif %}
+  </span>
+  <span class="ts">{{ zone.retention_days }}d retention · {{ zone.cooldown_seconds }}s cooldown</span>
+</div>
+
+<div class="summary-bar">
+  <div class="stat"><strong>{{ captures | length }}</strong> captures</div>
+  <div class="stat"><strong>{{ flagged | length }}</strong> flagged</div>
+  {% if flagged | length > 0 %}
+  <div class="stat"><a href="/events?zone_id={{ zone.id }}" style="color:#f87171;text-decoration:none;">View events →</a></div>
+  {% endif %}
+</div>
+
+{% if captures %}
+<table class="records-table">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Tasks</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in captures %}
+    <tr class="{% if c.flagged %}flagged{% endif %}" style="cursor:pointer;" onclick="location.href='/captures/{{ c.capture_id }}'">
+      <td class="ts">{{ c.timestamp[:19].replace('T', ' ') }}</td>
+      <td>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          {% for t in c.task_types %}
+          <span class="badge {% if t == 'documentation' %}badge-doc{% elif t == 'ocr' %}badge-ocr{% elif t == 'inspection' %}badge-insp{% elif t == 'classification' %}badge-class{% endif %}">{{ t }}</span>
+          {% endfor %}
+        </div>
+      </td>
+      <td>
+        <span class="badge {% if c.flagged %}badge-fail{% else %}badge-pass{% endif %}">
+          {% if c.flagged %}flagged{% else %}pass{% endif %}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">No captures for this zone yet.</div>
+{% endif %}
+
+<!-- Camera Settings Modal -->
+<div class="cam-overlay" id="cam-overlay" onclick="if(event.target===this)closeCameraSettings()">
+  <div class="cam-modal">
+    <div class="cam-modal-header">
+      <h2>Camera Settings</h2>
+      <button class="close-btn" onclick="closeCameraSettings()">×</button>
+    </div>
+    <div class="cam-modal-body">
+
+      <div class="cam-preview">
+        <div class="cam-preview-wrap" id="cam-wrap">
+          <img id="cam-stream" src="" alt="Live view" draggable="false">
+        </div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <button class="btn btn-secondary btn-sm" onclick="resetZoom()" style="flex:1;">Reset Zoom</button>
+          <form method="post" action="/zones/{{ zone.id }}/reconnect" style="flex:1;">
+            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;">Reconnect</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        {% if imaging %}
+
+        <div class="cam-section-title">Lights</div>
+
+        <div class="cam-row">
+          <label>IR Mode</label>
+          <select onchange="camPost('/zones/{{ zone.id }}/ir', {state: this.value})">
+            <option value="Auto" {% if imaging.ir_state == 'Auto' %}selected{% endif %}>Auto</option>
+            <option value="On"   {% if imaging.ir_state == 'On'   %}selected{% endif %}>On</option>
+            <option value="Off"  {% if imaging.ir_state == 'Off'  %}selected{% endif %}>Off</option>
+          </select>
+        </div>
+
+        <div class="cam-toggle-row">
+          <label>Flashlight</label>
+          <button type="button" class="toggle-btn {% if imaging.led_state == 1 %}active{% endif %}"
+                  data-led-state="{{ imaging.led_state }}" onclick="toggleLed(this)">
+            {% if imaging.led_state == 1 %}On{% else %}Off{% endif %}
+          </button>
+        </div>
+        <div class="cam-row">
+          <label>FL Brightness</label>
+          <input type="range" min="0" max="100" value="{{ imaging.led_bright }}" id="led-bright"
+                 oninput="this.nextElementSibling.textContent=this.value"
+                 onchange="camPost('/zones/{{ zone.id }}/led', {state: document.querySelector('[data-led-state]').dataset.ledState, bright: this.value})">
+          <span class="val">{{ imaging.led_bright }}</span>
+        </div>
+
+        <hr class="cam-divider">
+        <div class="cam-section-title">Image</div>
+
+        {% set sliders = [
+          ('brightness', 'Brightness', imaging.brightness, 0, 255),
+          ('contrast',   'Contrast',   imaging.contrast,   0, 255),
+          ('hue',        'Hue',        imaging.hue,        0, 255),
+          ('saturation', 'Saturation', imaging.saturation, 0, 255),
+          ('sharpness',  'Sharpness',  imaging.sharpness,  0, 255),
+        ] %}
+        {% for sid, label, val, mn, mx in sliders %}
+        <div class="cam-row">
+          <label>{{ label }}</label>
+          <input type="range" min="{{ mn }}" max="{{ mx }}" value="{{ val | int }}" id="s-{{ sid }}"
+                 oninput="this.nextElementSibling.textContent=this.value"
+                 onchange="applyImage()">
+          <span class="val">{{ val | int }}</span>
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div style="color:#555;font-size:13px;padding-top:8px;">
+          Camera settings unavailable — check logs for details.
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let reloadTimer = setTimeout(() => location.reload(), 5000);
+
+  function openCameraSettings() {
+    clearTimeout(reloadTimer);
+    document.getElementById('cam-stream').src = '/zones/{{ zone.id }}/stream';
+    document.getElementById('cam-overlay').classList.add('open');
+  }
+
+  function closeCameraSettings() {
+    document.getElementById('cam-stream').src = '';
+    document.getElementById('cam-overlay').classList.remove('open');
+    reloadTimer = setTimeout(() => location.reload(), 5000);
+  }
+
+  const form = document.getElementById('capture-form');
+  if (form) {
+    form.addEventListener('submit', () => {
+      const btn = document.getElementById('capture-btn');
+      btn.disabled = true;
+      btn.textContent = 'Capturing…';
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+    });
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCameraSettings(); });
+
+  // Zoom + pan on live preview
+  let scale = 1, panX = 0, panY = 0, dragging = false, startX, startY;
+
+  function applyTransform() {
+    document.getElementById('cam-stream').style.transform =
+      `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function resetZoom() {
+    scale = 1; panX = 0; panY = 0;
+    applyTransform();
+  }
+
+  const wrap = document.getElementById('cam-wrap');
+  if (wrap) {
+    wrap.addEventListener('wheel', e => {
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const delta = e.deltaY < 0 ? 1.15 : 0.87;
+      panX = mx - (mx - panX) * delta;
+      panY = my - (my - panY) * delta;
+      scale = Math.min(Math.max(scale * delta, 1), 8);
+      if (scale === 1) { panX = 0; panY = 0; }
+      applyTransform();
+    }, { passive: false });
+
+    wrap.addEventListener('mousedown', e => {
+      if (scale === 1) return;
+      dragging = true; startX = e.clientX - panX; startY = e.clientY - panY;
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panX = e.clientX - startX; panY = e.clientY - startY;
+      applyTransform();
+    });
+    document.addEventListener('mouseup', () => dragging = false);
+  }
+
+  function camPost(url, data) {
+    const body = new URLSearchParams(data);
+    fetch(url, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+  }
+
+  function toggleLed(btn) {
+    const current = parseInt(btn.dataset.ledState);
+    const next = current === 1 ? 0 : 1;
+    btn.dataset.ledState = next;
+    btn.textContent = next === 1 ? 'On' : 'Off';
+    btn.classList.toggle('active', next === 1);
+    camPost('/zones/{{ zone.id }}/led', {state: next, bright: document.getElementById('led-bright').value});
+  }
+
+  function applyImage() {
+    camPost('/zones/{{ zone.id }}/imaging', {
+      brightness: document.getElementById('s-brightness').value,
+      contrast:   document.getElementById('s-contrast').value,
+      hue:        document.getElementById('s-hue').value,
+      saturation: document.getElementById('s-saturation').value,
+      sharpness:  document.getElementById('s-sharpness').value,
+    });
+  }
+</script>
+{% endblock %}

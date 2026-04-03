@@ -12,9 +12,12 @@ class Zone:
     camera_url: str
     # Normalized (0–1) polygon points [[x, y], ...]
     polygon: list[list[float]] = field(default_factory=list)
-    task_type: str = "documentation"  # "ocr" | "documentation" | "inspection"
+    task_types: list[str] = field(default_factory=lambda: ["documentation"])
+    trigger_mode: str = "motion"   # "motion" | "sequence" | "manual"
     retention_days: int = 90
     cooldown_seconds: float = 10.0
+    motion_threshold: float = 0.02
+    sequence_interval: float = 0.0
 
     def crop(self, frame: np.ndarray) -> np.ndarray:
         """Mask frame to polygon and return tight bounding-box crop."""

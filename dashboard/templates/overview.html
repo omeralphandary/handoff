@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %} — Overview{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block head %}
+<style>
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: #161616;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .stat-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #444;
+    margin-bottom: 10px;
+  }
+  .stat-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f0f0f0;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .stat-card-value.accent-red { color: #f87171; }
+  .stat-card-value.accent-green { color: #4ade80; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #444;
+    margin-bottom: 14px;
+  }
+
+  /* Zones panel */
+  .zone-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .zone-row:last-child { border-bottom: none; }
+  .zone-row-name { flex: 1; font-size: 14px; color: #ddd; font-weight: 500; }
+  .zone-row-tasks { display: flex; gap: 5px; }
+  .zone-row-actions { display: flex; gap: 6px; }
+  form.inline { display: inline; }
+
+  /* Recent records */
+  .recent-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .recent-table th {
+    text-align: left; padding: 9px 12px; color: #444; font-size: 11px;
+    font-weight: 500; border-bottom: 1px solid #1e1e1e;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .recent-table td { padding: 11px 12px; border-bottom: 1px solid #1a1a1a; }
+  .recent-table tr:last-child td { border-bottom: none; }
+  .recent-table tr.flagged td { border-left: 2px solid #ef444460; }
+  .recent-table tr.flagged td:first-child { padding-left: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-card-label">Total zones</div>
+    <div class="stat-card-value">{{ stats.total_zones }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-label">Active now</div>
+    <div class="stat-card-value {% if stats.active_zones > 0 %}accent-green{% endif %}">{{ stats.active_zones }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-label">Total records</div>
+    <div class="stat-card-value">{{ stats.total_records }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-label">Flagged events</div>
+    <div class="stat-card-value {% if stats.flagged_records > 0 %}accent-red{% endif %}">{{ stats.flagged_records }}</div>
+  </div>
+</div>
+
+<div class="two-col">
+
+  <!-- Zones -->
+  <div class="card">
+    <div class="section-title">Zones</div>
+    {% if zones %}
+      {% for z in zones %}
+      <div class="zone-row">
+        <span class="zone-dot {% if z.active %}active{% endif %}"></span>
+        <span class="zone-row-name">{{ z.name }}</span>
+        <div class="zone-row-tasks">
+          {% for t in z.task_types %}
+          <span class="badge {% if t == 'documentation' %}badge-doc{% elif t == 'ocr' %}badge-ocr{% elif t == 'inspection' %}badge-insp{% elif t == 'classification' %}badge-class{% endif %}" style="font-size:11px;">{{ t[:3] }}</span>
+          {% endfor %}
+        </div>
+        <div class="zone-row-actions">
+          {% if z.active %}
+          <form class="inline" method="post" action="/zones/{{ z.id }}/stop">
+            <button type="submit" class="btn btn-warn btn-sm">Stop</button>
+          </form>
+          {% else %}
+          <form class="inline" method="post" action="/zones/{{ z.id }}/start">
+            <button type="submit" class="btn btn-success btn-sm">Start</button>
+          </form>
+          {% endif %}
+          <a href="/zones/{{ z.id }}" class="btn btn-secondary btn-sm">View</a>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-state" style="padding: 32px 0;">
+      No zones yet. <a href="/zones/new" style="color:#3b82f6;">Add one →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent records -->
+  <div class="card">
+    <div class="section-title">Recent records</div>
+    {% if recent %}
+    <table class="recent-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Zone</th>
+          <th>Task</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+        <tr class="{% if r.flagged %}flagged{% endif %}">
+          <td class="ts">{{ r.timestamp[11:19] }}</td>
+          <td style="color:#999;">{{ r.zone_name }}</td>
+          <td>
+            <span class="badge {% if r.task_type == 'documentation' %}badge-doc{% elif r.task_type == 'ocr' %}badge-ocr{% elif r.task_type == 'inspection' %}badge-insp{% elif r.task_type == 'classification' %}badge-class{% endif %}" style="font-size:11px;">{{ r.task_type[:3] }}</span>
+          </td>
+          <td>
+            <span class="badge {% if r.flagged %}badge-fail{% else %}badge-pass{% endif %}">
+              {% if r.flagged %}flag{% else %}pass{% endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top: 14px;">
+      <a href="/records" class="btn btn-secondary btn-sm">All records →</a>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: 32px 0;">No records yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

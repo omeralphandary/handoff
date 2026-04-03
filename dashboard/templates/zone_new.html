@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %} — Add Zone{% endblock %}
+{% block page_title %}Add Zone{% endblock %}
+{% block page_actions %}
+  <a href="/zones" class="btn btn-secondary btn-sm">Cancel</a>
+{% endblock %}
+
+{% block head %}
+<style>
+  .wizard { max-width: 680px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .task-checkboxes { display: flex; gap: 18px; align-items: center; padding: 9px 0; flex-wrap: wrap; }
+  .checkbox-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 14px; color: #aaa; cursor: pointer; user-select: none;
+  }
+  .checkbox-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
+  .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+  .section-note {
+    font-size: 12px; color: #444; margin-bottom: 20px; line-height: 1.6;
+    padding: 12px 14px; background: #111; border: 1px solid #1e1e1e; border-radius: 7px;
+  }
+  .trigger-options { display: flex; gap: 10px; padding: 9px 0; flex-wrap: wrap; }
+  .trigger-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 14px; color: #aaa; cursor: pointer; user-select: none;
+    padding: 7px 14px; border: 1px solid #222; border-radius: 6px; transition: border-color 0.15s;
+  }
+  .trigger-label:has(input:checked) { border-color: #3b82f6; color: #e5e5e5; }
+  .trigger-label input[type="radio"] { accent-color: #3b82f6; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard">
+  <div class="section-note">
+    A zone is a monitored area tied to a camera feed. Assign one or more task types to control what AI checks run on each captured frame.
+  </div>
+
+  <div class="card">
+    <form method="post" action="/zones" novalidate>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Zone name</label>
+          <input id="name" name="name" type="text" placeholder="Dock A — inbound" required autofocus>
+        </div>
+        <div class="form-group">
+          <label>Task types</label>
+          <div class="task-checkboxes">
+            {% for t in task_types %}
+            <label class="checkbox-label">
+              <input type="checkbox" name="task_types" value="{{ t }}" {% if t == 'documentation' %}checked{% endif %}>
+              {{ t }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-group full">
+          <label for="camera_url">Camera URL</label>
+          <input id="camera_url" name="camera_url" type="text" placeholder="rtsp://192.168.1.100:554/stream1" required>
+          <span class="form-hint">RTSP, ONVIF, or a local file path for testing</span>
+        </div>
+        <div class="form-group full">
+          <label>Trigger method</label>
+          <div class="trigger-options">
+            <label class="trigger-label">
+              <input type="radio" name="trigger_mode" value="motion" checked onchange="onTriggerChange(this.value)">
+              Motion
+            </label>
+            <label class="trigger-label">
+              <input type="radio" name="trigger_mode" value="sequence" onchange="onTriggerChange(this.value)">
+              Time interval
+            </label>
+            <label class="trigger-label">
+              <input type="radio" name="trigger_mode" value="manual" onchange="onTriggerChange(this.value)">
+              Manual
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="field-motion_threshold">
+          <label for="motion_threshold">Motion sensitivity (0.01–0.5)</label>
+          <input id="motion_threshold" name="motion_threshold" type="number" value="0.02" min="0.001" max="0.5" step="0.005">
+          <span class="form-hint">Fraction of pixels that must change to trigger. Lower = more sensitive.</span>
+        </div>
+        <div class="form-group" id="field-cooldown_seconds">
+          <label for="cooldown_seconds">Motion cooldown (seconds)</label>
+          <input id="cooldown_seconds" name="cooldown_seconds" type="number" value="10" min="1" step="0.5">
+          <span class="form-hint">Minimum gap between motion captures</span>
+        </div>
+        <div class="form-group full" id="field-sequence_interval" style="display:none;">
+          <label for="sequence_interval">Capture interval (seconds)</label>
+          <input id="sequence_interval" name="sequence_interval" type="number" value="30" min="1" step="1">
+          <span class="form-hint">Capture a frame every N seconds regardless of motion.</span>
+        </div>
+        <div class="form-group">
+          <label for="retention_days">Retention (days)</label>
+          <input id="retention_days" name="retention_days" type="number" value="90" min="1" max="3650">
+          <span class="form-hint">How long to keep captured records</span>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:22px;">
+        <button type="submit" class="btn btn-primary">Create zone</button>
+        <a href="/zones" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onTriggerChange(mode) {
+  document.getElementById('field-motion_threshold').style.display = mode === 'motion' ? '' : 'none';
+  document.getElementById('field-cooldown_seconds').style.display  = mode === 'motion' ? '' : 'none';
+  document.getElementById('field-sequence_interval').style.display = mode === 'sequence' ? '' : 'none';
+}
+</script>
+{% endblock %}

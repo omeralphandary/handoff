@@ -1,50 +1,35 @@
 """Task-specific VLM prompts."""
 
-DOCUMENTATION_PROMPT = """You are a freight condition inspector. Score the package condition on a 1-5 scale.
+_IGNORE = "Ignore camera OSD, timestamps, watermarks, and brand text. Describe only physical objects and conditions."
 
-Scoring rubric — be strict about what counts as damage:
-  5 = PASS. No damage. Normal cardboard appearance, minor manufacturing creases, slight
-      discoloration, small scuffs from normal handling. These are NOT damage.
-  4 = Minor cosmetic marks that do not affect structural integrity or contents.
-      Small surface scratches, light dirt, very shallow dents on non-load-bearing areas.
-  3 = Moderate damage. Visible dents, tears, or deformation that may affect contents.
-      Crushed corners with structural compromise, punctures, wet spots.
-  2 = Significant damage. Large tears, heavy crushing, broken seams, contents visible or at risk.
-  1 = Severe. Contents exposed, package structurally failed.
+DOCUMENTATION_PROMPT = """Freight condition and safety inspector.
 
-Important: do NOT penalise normal cardboard texture, print wear, minor fold lines from
-manufacturing, or light surface marks. Only flag genuine damage that would concern a
-freight receiver or create a liability dispute.
+Score condition 1-5: 5=no damage, 4=cosmetic only, 3=moderate (dents/tears/wet), 2=significant (seams broken/contents at risk), 1=severe (contents exposed). Normal creases and scuffs are NOT damage.
 
-Return valid JSON only, no other text:
-{
-  "condition_score": <integer 1-5>,
-  "passed": <true if score is 5, false otherwise>,
-  "damage_items": [
-    {"location": <str>, "type": <str>, "severity": "minor" | "moderate" | "severe"}
-  ],
-  "summary": <str describing defects — omit this field entirely if passed is true>
-}
+Also assess: is each object stable or at risk of tipping/falling? Any hazards (fire, smoke, spill, unsafe stacking)?
 
-If passed is true, damage_items must be an empty array."""
+JSON only:
+{"condition_score":int,"passed":bool,"damage_items":[{"location":str,"type":str,"severity":"minor|moderate|severe"}],"safety_status":"stable|at_risk|unsafe","safety_notes":[{"object":str,"issue":str,"severity":"low|medium|high"}],"hazards":[{"type":str,"severity":"low|medium|high"}],"summary":str}
 
-OCR_PROMPT = """Read all visible text, labels, barcodes, and identifiers in this image.
+passed=true when score>=4, safety_status=stable, no hazards. If passed, damage_items/safety_notes/hazards=[], omit summary."""
 
-Return valid JSON only, no other text:
-{
-  "texts": [str],
-  "barcodes": [str],
-  "identifiers": [{"label": str, "value": str}],
-  "summary": str
-}"""
+OCR_PROMPT = f"""Read all text, labels, and codes on physical objects. {_IGNORE}
 
-INSPECTION_PROMPT = """Inspect this image for anomalies, safety issues, or changes from expected state.
+JSON only:
+{{"texts":[str],"barcodes":[str],"identifiers":[{{"label":str,"value":str}}],"summary":str}}"""
 
-Return valid JSON only, no other text:
-{
-  "anomaly_detected": bool,
-  "anomalies": [
-    {"description": str, "severity": "low" | "medium" | "high", "location": str}
-  ],
-  "summary": str
-}"""
+INSPECTION_PROMPT = """Inspect for anomalies and safety issues.
+
+Check: object stability (tipping/falling?), structural integrity, hazards (fire/smoke/spill/unsafe stacking), displaced or missing items. Ignore minor lighting changes.
+
+JSON only:
+{"anomaly_detected":bool,"safety_status":"stable|at_risk|unsafe","anomalies":[{"description":str,"severity":"low|medium|high","location":str}],"summary":str}
+
+Omit summary if anomaly_detected=false and safety_status=stable."""
+
+CLASSIFICATION_PROMPT = """Identify primary cargo type.
+
+Types: pallet_wrapped, pallet_open, single_box, container, bag, drum, mixed, empty, unknown.
+
+JSON only:
+{"cargo_type":str,"confidence":"high|medium|low","count":int|null,"notes":str}"""

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %} — Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block head %}
+<style>
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .settings-section { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+  .settings-section:last-child { margin-bottom: 0; }
+  .section-heading {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #444;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .kv { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #161616; }
+  .kv:last-child { border-bottom: none; }
+  .kv-key { font-size: 13px; color: #666; }
+  .kv-val { font-size: 13px; color: #ccc; font-family: 'SF Mono', monospace; }
+  .kv-val.ok   { color: #4ade80; }
+  .kv-val.warn { color: #f87171; }
+
+  .env-hint {
+    background: #111;
+    border: 1px solid #1e1e1e;
+    border-radius: 7px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: #555;
+    font-family: 'SF Mono', monospace;
+    line-height: 1.7;
+  }
+  .env-hint b { color: #666; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-grid">
+
+  <!-- VLM config -->
+  <div class="card">
+    <div class="section-heading">VLM Backend</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      {% for b in [('local', 'Local'), ('hybrid', 'Hybrid'), ('anthropic', 'Anthropic')] %}
+      <form method="post" action="/settings/backend" style="flex:1;">
+        <input type="hidden" name="backend" value="{{ b[0] }}">
+        <button type="submit" class="btn btn-sm" style="width:100%;
+          {% if vlm_backend == b[0] %}background:#1d4ed8;border-color:#2563eb;color:#fff;{% else %}background:#111;border-color:#333;color:#666;{% endif %}">
+          {{ b[1] }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+
+    <div class="kv">
+      <span class="kv-key">Model</span>
+      <span class="kv-val">{% if vlm_backend == 'anthropic' %}{{ vlm_model }}{% elif vlm_backend == 'hybrid' %}{{ local_model }} → {{ vlm_model }}{% else %}{{ local_model }}{% endif %}</span>
+    </div>
+    {% if vlm_backend in ['anthropic', 'hybrid'] %}
+    <div class="kv">
+      <span class="kv-key">API key</span>
+      <span class="kv-val {% if has_anthropic_key %}ok{% else %}warn{% endif %}">
+        {% if has_anthropic_key %}configured{% else %}missing{% endif %}
+      </span>
+    </div>
+    {% endif %}
+    {% if vlm_backend in ['local', 'hybrid'] %}
+    <div class="kv">
+      <span class="kv-key">Ollama URL</span>
+      <span class="kv-val">{{ ollama_url }}</span>
+    </div>
+    {% endif %}
+    <div style="margin-top:18px;">
+      <a href="/health" class="btn btn-secondary btn-sm">Check health →</a>
+    </div>
+  </div>
+
+  <!-- Env vars reference -->
+  <div class="card">
+    <div class="section-heading">Environment Variables</div>
+    <div class="env-hint">
+      <b>VLM_BACKEND</b>=local | anthropic<br>
+      <b>VLM_MODEL</b>=claude-sonnet-4-6<br>
+      <b>LOCAL_MODEL</b>=llava:7b<br>
+      <b>OLLAMA_URL</b>=http://localhost:11434<br>
+      <b>ANTHROPIC_API_KEY</b>=sk-ant-…<br>
+      <b>DASHBOARD_HOST</b>=0.0.0.0<br>
+      <b>DASHBOARD_PORT</b>=8000
+    </div>
+    <div style="margin-top:14px; font-size:12px; color:#444;">
+      Set these in a <code style="color:#555;">.env</code> file at the project root. Restart the server after changes.
+    </div>
+  </div>
+
+</div>
+{% endblock %}

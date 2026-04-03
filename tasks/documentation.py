@@ -14,9 +14,9 @@ class DocumentationTask(BaseTask):
         self.vlm = vlm
         self.store = store
 
-    async def run(self, frame: np.ndarray, zone: Zone) -> None:
+    async def run(self, frame: np.ndarray, zone: Zone, capture_id: str | None = None) -> None:
         result = await self.vlm.analyze(frame, DOCUMENTATION_PROMPT)
-        record = await self.store.save(frame, zone, task_type="documentation", result=result)
-        if result.get("damage_detected"):
+        record = await self.store.save(frame, zone, task_type="documentation", result=result, capture_id=capture_id)
+        if not result.get("passed", True):
             pdf_path = generate_pdf(record)
             await self.store.attach_pdf(record["id"], pdf_path)

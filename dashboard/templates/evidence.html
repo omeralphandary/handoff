@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %} — Evidence{% endblock %}
+
+{% block head %}
+<style>
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 20px; font-weight: 600; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 10px; align-items: center; }
+  .filter-bar label { font-size: 12px; color: #888; }
+  select { background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
+           padding: 7px 10px; border-radius: 5px; font-size: 13px; }
+  .btn-filter { background: #1d4ed8; color: #fff; padding: 7px 16px; border: none;
+                border-radius: 5px; font-size: 12px; cursor: pointer; font-weight: 500; }
+  .btn-clear { background: #2a2a2a; color: #aaa; padding: 7px 12px; border: none;
+               border-radius: 5px; font-size: 12px; cursor: pointer; text-decoration: none; display: inline-block; }
+
+  /* Table */
+  .evidence-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .evidence-table th { text-align: left; padding: 10px 12px; color: #666; font-size: 11px;
+                       font-weight: 500; border-bottom: 1px solid #222; text-transform: uppercase; letter-spacing: 0.04em; }
+  .evidence-table td { padding: 11px 12px; border-bottom: 1px solid #1e1e1e; vertical-align: middle; }
+  .evidence-table tr:hover td { background: #161616; }
+  .evidence-table tr.flagged td { border-left: 3px solid #ef4444; }
+  .evidence-table tr.flagged td:first-child { padding-left: 9px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge-pass { background: #14532d; color: #4ade80; }
+  .badge-fail { background: #7f1d1d; color: #f87171; }
+  .badge-doc { background: #1e3a5f; color: #60a5fa; }
+  .badge-ocr { background: #3b2a1a; color: #fb923c; }
+  .badge-insp { background: #1a2e1a; color: #4ade80; }
+
+  .score { font-weight: 600; }
+  .score-high { color: #4ade80; }
+  .score-mid { color: #facc15; }
+  .score-low { color: #f87171; }
+
+  .ts { color: #555; font-size: 12px; font-family: monospace; }
+  .zone-name { color: #aaa; }
+
+  .pdf-link { color: #60a5fa; font-size: 12px; text-decoration: none; }
+  .pdf-link:hover { text-decoration: underline; }
+  .no-pdf { color: #444; font-size: 12px; }
+
+  .empty-state { color: #555; font-size: 14px; padding: 48px 0; text-align: center; }
+
+  .summary-bar { display: flex; gap: 24px; margin-bottom: 20px; }
+  .stat { font-size: 13px; color: #888; }
+  .stat strong { color: #e0e0e0; font-size: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Evidence Log</h1>
+  <form class="filter-bar" method="get" action="/evidence">
+    <label for="zone_id">Zone</label>
+    <select id="zone_id" name="zone_id">
+      <option value="">All zones</option>
+      {% for z in zones %}
+      <option value="{{ z.id }}" {% if selected_zone == z.id %}selected{% endif %}>{{ z.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-filter">Filter</button>
+    {% if selected_zone %}
+    <a href="/evidence" class="btn-clear">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+{% if records %}
+<div class="summary-bar">
+  <div class="stat"><strong>{{ records | length }}</strong> records</div>
+  <div class="stat"><strong>{{ records | selectattr('flagged') | list | length }}</strong> flagged</div>
+  <div class="stat"><strong>{{ records | selectattr('pdf_path') | list | length }}</strong> with PDF</div>
+</div>
+
+<table class="evidence-table">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Zone</th>
+      <th>Task</th>
+      <th>Result</th>
+      <th>PDF</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in records %}
+    <tr class="{% if r.flagged %}flagged{% endif %}">
+      <td class="ts">{{ r.timestamp[:19].replace('T', ' ') }}</td>
+      <td class="zone-name">{{ r.zone_name }}</td>
+      <td>
+        <span class="badge {% if r.task_type == 'documentation' %}badge-doc{% elif r.task_type == 'ocr' %}badge-ocr{% else %}badge-insp{% endif %}">
+          {{ r.task_type }}
+        </span>
+      </td>
+      <td>
+        {% set res = r.result %}
+        {% if res.condition_score is defined %}
+          <span class="score {% if res.condition_score >= 4 %}score-high{% elif res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">
+            {{ res.condition_score }}/5
+          </span>
+          &nbsp;
+        {% endif %}
+        <span class="badge {% if r.flagged %}badge-fail{% else %}badge-pass{% endif %}">
+          {% if r.flagged %}flagged{% else %}pass{% endif %}
+        </span>
+        {% if res.summary is defined %}
+          <span style="color:#666;font-size:12px;margin-left:8px;">{{ res.summary[:80] }}{% if res.summary | length > 80 %}…{% endif %}</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if r.pdf_path %}
+        <a class="pdf-link" href="/evidence/{{ r.id }}/pdf">Download</a>
+        {% else %}
+        <span class="no-pdf">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">No evidence records yet{% if selected_zone %} for this zone{% endif %}.</div>
+{% endif %}
+{% endblock %}

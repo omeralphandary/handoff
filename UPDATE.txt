@@ -1,0 +1,105 @@
+HANDOFF — SESSION UPDATE
+Last updated: 2026-04-01
+================================================================================
+
+## WHERE WE ARE
+
+Pipeline is end-to-end working on a real camera (Reolink P330).
+Motion triggers → VLM analysis → SQLite record → dashboard live update.
+Switched to Anthropic Claude Sonnet backend (llava:7b had GPU OOM with EasyOCR).
+OCR reads text directly via Claude Vision — works on blurry fixed-lens footage.
+
+## CAMERA
+
+Reolink P330 at 10.0.0.58:554
+- Connected via home network switch
+- RTSP enabled via Reolink app
+- Stream is H.265 (HEVC) — fixed-lens camera, no focus control whatsoever
+- Fixed by replacing OpenCV VideoCapture with FFmpeg subprocess reader
+  (core/camera.py pipes raw BGR frames from ffmpeg subprocess)
+- RTSP URL: rtsp://admin:<password>@10.0.0.58:554/h264Preview_01_main
+- NOTE: P330 has a fixed 2.8mm lens — no manual focus, no API/ONVIF control.
+  For OCR/barcode use cases, camera must be mounted close (1–1.5m) to target.
+  Varifocal alternative: RLC-811A, P430, P433.
+
+## VLM BACKEND
+
+Currently: Anthropic (claude-sonnet-4-6)
+- Switched from llava:7b due to GPU OOM when EasyOCR ran alongside Ollama
+- EasyOCR removed from OCR pipeline — Claude reads text directly from image
+- pyzbar still used for barcode/QR decode (CPU, no VRAM needed)
+- To switch back: VLM_BACKEND=local in .env
+
+## ASSETS
+- handoff-overview.html — product 1-pager (overview, vision, GTM, market, tiers)
+
+## WHAT'S DONE
+
+### Core pipeline
+- [x] config.py — VLM_BACKEND env switch (local / anthropic), PDF_RETENTION_HOURS
+- [x] core/camera.py — FFmpeg subprocess reader (handles H.265), background thread
+- [x] core/motion.py — MOG2 background subtraction trigger with configurable threshold
+- [x] core/zone.py — Zone dataclass: task_types, retention_days, cooldown_seconds,
+                      motion_threshold, sequence_interval
+- [x] core/dispatcher.py — motion trigger + sequence trigger (independent), INFO logging
+- [x] vlm/client.py — LocalVLMClient (Ollama), AnthropicVLMClient (Claude), factory
+- [x] vlm/prompts.py — DOCUMENTATION, OCR, INSPECTION, CLASSIFICATION prompts
+- [x] storage/local.py — full CRUD, migration (task_type→task_types, motion_threshold,
+                          sequence_interval), purge_expired, purge_old_pdfs
+- [x] storage/store.py — BaseStore abstract interface
+- [x] reports/pdf.py — PDF report, Unicode-safe
+- [x] tasks/documentation.py — VLM condition scoring
+- [x] tasks/ocr.py — pyzbar barcodes + Claude Vision text reading (no EasyOCR)
+- [x] tasks/inspection.py — baseline diff → VLM gate
+- [x] tasks/classification.py — cargo type classification
+- [x] tasks/_ocr_readers.py — pyzbar + sharpening preprocessing
+
+### Dashboard
+- [x] All TemplateResponse calls updated to Starlette 1.0.0 API
+- [x] dashboard/main.py — static image serving (/static/images), PDF rotation scheduler
+- [x] dashboard/routes/overview.py — stats + recent records
+- [x] dashboard/routes/zones.py — Zone CRUD, start/stop, MJPEG stream (/zones/<id>/stream),
+                                   zone_dispatchers state for stream access
+- [x] dashboard/routes/records.py — list + record detail page
+- [x] dashboard/routes/events.py — flagged-only view
+- [x] dashboard/routes/health.py — VLM ping, disk, data stats
+- [x] dashboard/routes/settings.py — VLM config display
+- [x] templates/base.html — sidebar, {% block scripts %}, {% block meta %}
+- [x] templates/zone_detail.html — clickable rows → record detail, Live View button,
+                                    5s auto-refresh
+- [x] templates/zone_new.html — motion_threshold, sequence_interval fields
+- [x] templates/zone_edit.html — motion_threshold, sequence_interval fields
+- [x] templates/record_detail.html — full record view: image, all result fields, summary
+- [x] templates/records.html — 5s auto-refresh
+
+### Tests
+- [x] tests/test_ocr_task.py — 6 tests
+- [x] tests/test_inspection_task.py — 8 tests
+- [x] pytest.ini — asyncio_mode=auto
+
+## OPEN TASKS (by priority)
+
+P1
+- Polygon draw UI — currently analyzing full frame, no zone crop
+  (#5 camera snapshot for polygon draw now unblocked — use /zones/<id>/stream)
+
+P2
+- Manual trigger button — force capture without waiting for motion
+- HTMX partial reload — replace setTimeout auto-refresh
+- Accuracy benchmark — Anthropic vs llava:7b on damaged box dataset
+
+P3
+- Fix/update tests — OCRTask tests still mock EasyOCR (now removed from pipeline)
+
+## TECH STACK
+
+Python 3.12, FastAPI, aiosqlite, httpx, FFmpeg (subprocess), fpdf2, APScheduler
+pyzbar (barcode), Ollama (llava:7b, local fallback)
+Anthropic SDK (claude-sonnet-4-6) — active backend
+Starlette 1.0.0, Jinja2 3.1.6
+
+## KANBAN
+
+GitHub Issues: https://github.com/omeralphandary/handoff/issues
+Labels: bug / feature / task / chore | p1 / p2 / p3
+================================================================================
