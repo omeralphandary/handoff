@@ -9,23 +9,22 @@ Score condition 1-5: 5=no damage, 4=cosmetic only, 3=moderate (dents/tears/wet),
 Also assess: is each object stable or at risk of tipping/falling? Any hazards (fire, smoke, spill, unsafe stacking)?
 
 JSON only:
-{"condition_score":int,"passed":bool,"damage_items":[{"location":str,"type":str,"severity":"minor|moderate|severe"}],"safety_status":"stable|at_risk|unsafe","safety_notes":[{"object":str,"issue":str,"severity":"low|medium|high"}],"hazards":[{"type":str,"severity":"low|medium|high"}],"summary":str}
+{"condition_score":int,"passed":bool,"safety_status":"stable|at_risk|unsafe","damage_items":[{"location":str,"type":str,"severity":"minor|moderate|severe"}],"safety_notes":[{"object":str,"issue":str,"severity":"low|medium|high"}],"hazards":[{"type":str,"severity":"low|medium|high"}],"summary":str}
 
-passed=true when score>=4, safety_status=stable, no hazards. If passed, damage_items/safety_notes/hazards=[], omit summary."""
+passed=true when score>=4, safety_status=stable, no hazards. Always include safety_status. Omit summary if passed and no issues."""
 
 OCR_PROMPT = f"""Read all text, labels, and codes on physical objects. {_IGNORE}
 
 JSON only:
 {{"texts":[str],"barcodes":[str],"identifiers":[{{"label":str,"value":str}}],"summary":str}}"""
 
-INSPECTION_PROMPT = """Inspect for anomalies and safety issues.
-
-Check: object stability (tipping/falling?), structural integrity, hazards (fire/smoke/spill/unsafe stacking), displaced or missing items. Ignore minor lighting changes.
-
-JSON only:
-{"anomaly_detected":bool,"safety_status":"stable|at_risk|unsafe","anomalies":[{"description":str,"severity":"low|medium|high","location":str}],"summary":str}
-
-Omit summary if anomaly_detected=false and safety_status=stable."""
+# INSPECTION_PROMPT retired — documentation task covers this for now
+# Restore when re-enabling the inspection task type
+# INSPECTION_PROMPT = """Inspect for anomalies and safety issues.
+# Check: object stability (tipping/falling?), structural integrity, hazards (fire/smoke/spill/unsafe stacking), displaced or missing items. Ignore minor lighting changes.
+# JSON only:
+# {"anomaly_detected":bool,"safety_status":"stable|at_risk|unsafe","anomalies":[{"description":str,"severity":"low|medium|high","location":str}],"summary":str}
+# Omit summary if anomaly_detected=false and safety_status=stable."""
 
 CLASSIFICATION_PROMPT = """Identify primary cargo type.
 

@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oversight: Proof at Every Oversight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f0f0f;
+      --surface: #161616;
+      --surface2: #111;
+      --rule:    #1e1e1e;
+      --rule2:   #2a2a2a;
+      --ink:     #f0f0f0;
+      --body:    #d4d4d4;
+      --muted:   #666;
+      --accent:  #3b82f6;
+      --accent-h: #2563eb;
+      --accent-dim: #1e3a5f;
+      --pass:    #4ade80;
+      --pass-bg: #14532d;
+      --fail:    #f87171;
+      --fail-bg: #7f1d1d;
+      --warn:    #facc15;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--body);
+      background: var(--bg);
+      line-height: 1.6;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--rule);
+      color: #fff;
+      padding: 72px 48px 64px;
+      max-width: 100%;
+    }
+
+    .hero-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .brand-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-mark svg { display: block; }
+
+    .brand-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+
+    .hero h1 {
+      font-size: clamp(30px, 5vw, 50px);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: #888;
+      max-width: 580px;
+      line-height: 1.65;
+      margin-bottom: 44px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--rule);
+      padding-top: 32px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 48px 80px;
+    }
+
+    section { padding-top: 56px; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    p {
+      color: #999;
+      margin-bottom: 14px;
+      max-width: 680px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--rule);
+      margin-top: 56px;
+    }
+
+    /* ── PROBLEM BLOCK ── */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .problem-card {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .problem-card .number {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--fail);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .problem-card p {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* ── SOLUTION ── */
+    .solution-callout {
+      background: #1e3a5f22;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+      margin: 24px 0;
+      max-width: 700px;
+    }
+
+    .solution-callout p {
+      margin: 0;
+      color: #93c5fd;
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      margin-top: 28px;
+      max-width: 640px;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .step:last-child { border-bottom: none; }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .step-body strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .step-body span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── TASKS ── */
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    @media (max-width: 640px) { .task-grid { grid-template-columns: 1fr; } }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 22px;
+    }
+
+    .task-icon { font-size: 18px; margin-bottom: 12px; }
+
+    .task-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .task-card p {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* ── MARKET ── */
+    .market-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    @media (max-width: 580px) { .market-row { grid-template-columns: 1fr; } }
+
+    .market-card {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 22px;
+    }
+
+    .market-card h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .market-card ul { list-style: none; padding: 0; }
+
+    .market-card li {
+      font-size: 13px;
+      color: #aaa;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .market-card li:last-child { border-bottom: none; }
+
+    .market-card li::before {
+      content: "→";
+      color: var(--accent);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    /* ── TIERS ── */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    @media (max-width: 560px) { .tier-grid { grid-template-columns: 1fr; } }
+
+    .tier-card {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 24px;
+    }
+
+    .tier-card.featured {
+      border-color: var(--accent);
+      background: #1e3a5f22;
+    }
+
+    .tier-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-bottom: 10px;
+    }
+
+    .tier-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .tier-card .price {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .tier-card ul { list-style: none; padding: 0; }
+
+    .tier-card li {
+      font-size: 13px;
+      color: #aaa;
+      padding: 5px 0;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .tier-card li:last-child { border-bottom: none; }
+
+    .tier-card li::before {
+      content: "✓";
+      color: var(--pass);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── GTM ── */
+    .gtm-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    @media (max-width: 620px) { .gtm-row { grid-template-columns: 1fr; } }
+
+    .gtm-card {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .gtm-phase {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .gtm-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .gtm-card p {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* ── VISION ── */
+    .vision-block {
+      background: var(--surface);
+      border: 1px solid var(--rule2);
+      border-radius: 10px;
+      padding: 36px 40px;
+      margin-top: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .vision-block::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .vision-block p {
+      color: #888;
+      font-size: 15px;
+      max-width: 640px;
+      margin-bottom: 16px;
+    }
+
+    .vision-block p:last-child { margin-bottom: 0; }
+
+    .vision-block strong { color: var(--accent); }
+
+    /* ── FOOTER ── */
+    .footer {
+      border-top: 1px solid var(--rule);
+      margin-top: 56px;
+      padding-top: 20px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer strong { color: #aaa; }
+
+    /* ── COMPARISON TABLE ── */
+    .compare-wrap { overflow-x: auto; margin-top: 24px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--rule2);
+    }
+
+    tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: top;
+      color: #aaa;
+    }
+
+    tbody td strong { color: var(--ink); }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tbody tr.hl td {
+      background: #1e3a5f18;
+      color: #93c5fd;
+      font-weight: 500;
+    }
+
+    tbody tr.hl td strong { color: #93c5fd; }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+
+    .tag-green  { background: #14532d; color: #4ade80; }
+    .tag-red    { background: #7f1d1d44; color: #f87171; }
+    .tag-yellow { background: #3b2a1a; color: #fb923c; }
+    .tag-blue   { background: #1e3a5f; color: #60a5fa; }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="wordmark">
+      <span class="brand-mark">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="1" width="5" height="12" rx="1" fill="white"/>
+          <rect x="8" y="5" width="5" height="8" rx="1" fill="white"/>
+        </svg>
+      </span>
+      <span class="brand-name">Oversight</span>
+    </div>
+    <h1>Every cargo oversight is a<br><em>liability moment.</em><br>Nobody automates the proof.</h1>
+    <p class="hero-sub">
+      Timestamped, AI-analyzed condition reports at every dock door, yard gate, and interchange point. Works with any IP camera you put in front of it.
+    </p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-value">85M</div>
+        <div class="stat-label">parcels damaged in 2024</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">$3,777</div>
+        <div class="stat-label">avg cost per LTL claim</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">34%</div>
+        <div class="stat-label">of LTL claims denied or underpaid</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">$0</div>
+        <div class="stat-label">automated mid-market solution today</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- PROBLEM -->
+  <section>
+    <div class="section-label">The Problem</div>
+    <h2>Cargo changes hands hundreds of times a day. Nobody documents the state at the moment of transfer.</h2>
+    <p>
+      A pallet arrives with a crushed corner. Was it damaged in transit or at your dock? A truck departs with a dent. Was it pre-existing or caused on-site? Without visual proof captured at the exact moment of oversight, the answer is always "it depends on who you believe." Disputes default to whoever has the better lawyer, not whoever is right.
+    </p>
+    <p>
+      The current process: a photo on someone's phone, if they remember to take it. In practice: paper checklists, clipboard walk-arounds, CCTV footage nobody reviews until something goes wrong, and even then it may be overwritten.
+    </p>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="number">34%</div>
+        <p>LTL damage claims denied or only partially paid, often for lack of contemporaneous evidence</p>
+      </div>
+      <div class="problem-card">
+        <div class="number">+30%</div>
+        <p>year-on-year increase in parcel damage incidents in 2024</p>
+      </div>
+      <div class="problem-card">
+        <div class="number">$5–6M</div>
+        <p>per year paid by a large LTL shipper in damage and loss claims</p>
+      </div>
+      <div class="problem-card">
+        <div class="number">~14,500</div>
+        <p>large distribution centers in the US alone, the vast majority running no automated documentation</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SOLUTION -->
+  <section>
+    <div class="section-label">The Solution</div>
+    <h2>Your camera setup. Automated proof.</h2>
+
+    <div class="solution-callout">
+      <p>
+        Oversight connects to any IP camera via RTSP or ONVIF. Draw a zone over the area of interest, choose a task, and go live. From that point on, every oversight event is automatically captured, AI-analyzed, and stored as a timestamped evidence record. No one needs to press a button.
+      </p>
+    </div>
+
+    <p>
+      No proprietary hardware. No long installation project. No capital budget conversation. A warehouse manager can configure a dock door camera in an afternoon and have their first evidence report that same day.
+    </p>
+
+    <div class="task-grid">
+      <div class="task-card">
+        <div class="task-icon">📋</div>
+        <h3>Documentation</h3>
+        <p>Captures cargo condition at arrival and departure. Generates a timestamped PDF evidence report with AI-analyzed damage findings, ready to attach to any freight claim.</p>
+      </div>
+      <div class="task-card">
+        <div class="task-icon">🔍</div>
+        <h3>OCR</h3>
+        <p>Reads labels, barcodes, QR codes, and BOL numbers from cargo in the zone. Matches against expected values and logs every scan with the corresponding image.</p>
+      </div>
+      <div class="task-card">
+        <div class="task-icon">👁</div>
+        <h3>Continuous Inspection</h3>
+        <p>Monitors areas over time: racking condition, floor hazards, compliance zones. Detects changes from baseline and generates weekly condition reports with alerts.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- HOW IT WORKS -->
+  <section>
+    <div class="section-label">Setup</div>
+    <h2>Live in an afternoon. No installation team required.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Connect your camera</strong>
+          <span>Enter an RTSP URL or scan the QR code on a new Oversight-bundled camera. Live preview appears immediately. Works with any existing IP camera on your network.</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Draw your zone</strong>
+          <span>Drag a polygon over the area of interest on the live feed: a dock door opening, a vehicle bay, a pallet staging area. One camera can monitor multiple zones.</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Choose a task and trigger</strong>
+          <span>Select Documentation, OCR, or Continuous Inspection. Set the trigger: motion entering the zone, a time schedule, or manual. No further configuration needed.</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Evidence is automatic from here</strong>
+          <span>Every trigger event captures frames, runs AI analysis, and saves a timestamped record to your evidence log. PDF reports generated for flagged events. Retention period configurable.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- MARKET -->
+  <section>
+    <div class="section-label">Market</div>
+    <h2>A validated problem. An underserved segment.</h2>
+    <p>
+      Kargo, the market leader, has raised $60M+ and deployed 1,000+ proprietary camera towers across Fortune 500 accounts (Mercedes-Benz, Tillamook, Wayne-Sanderson). Their product is excellent. It is also enterprise-only, hardware-dependent, and priced for accounts that process tens of thousands of pallets per day.
+    </p>
+    <p>
+      The mid-market does not have a software-first, camera-agnostic option. That is the gap Oversight fills.
+    </p>
+    <div class="market-row">
+      <div class="market-card">
+        <h3>Target Customers</h3>
+        <ul>
+          <li>3PL and regional distribution centers</li>
+          <li>Mid-market LTL shippers (50–500 employees)</li>
+          <li>Port interchange operators</li>
+          <li>Cold chain and pharma logistics</li>
+          <li>Contract manufacturers with inbound/outbound docks</li>
+          <li>Truck and trailer rental depots</li>
+        </ul>
+      </div>
+      <div class="market-card">
+        <h3>Why Now</h3>
+        <ul>
+          <li>Parcel damage up 30% YoY, claim pressure is rising</li>
+          <li>VLMs enable zero-shot damage analysis (no training data)</li>
+          <li>IP camera penetration is near-universal in logistics facilities</li>
+          <li>Mid-market SaaS buying is self-serve, no enterprise sales required</li>
+          <li>CEE/EU logistics infrastructure growing fast; Prague is a hub</li>
+          <li>Regulatory pressure on evidence retention increasing across EU</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-wrap" style="margin-top:28px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Hardware</th>
+            <th>Target</th>
+            <th>Pricing</th>
+            <th>Gap</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Kargo</strong></td>
+            <td><span class="tag tag-red">Proprietary towers</span></td>
+            <td>Fortune 500</td>
+            <td>Enterprise</td>
+            <td>No self-serve, no mid-market</td>
+          </tr>
+          <tr>
+            <td><strong>Dockware</strong></td>
+            <td><span class="tag tag-yellow">Proprietary sensor</span></td>
+            <td>Warehouse</td>
+            <td>Undisclosed</td>
+            <td>Custom hardware, US-focused, early</td>
+          </tr>
+          <tr>
+            <td><strong>Kibsi</strong></td>
+            <td><span class="tag tag-green">Any camera</span></td>
+            <td>Enterprise</td>
+            <td>~$500+/mo</td>
+            <td>High config complexity, no damage focus</td>
+          </tr>
+          <tr>
+            <td><strong>Phone photo</strong></td>
+            <td><span class="tag tag-yellow">Manual</span></td>
+            <td>Everyone</td>
+            <td>N/A</td>
+            <td>Not automatic, not structured, not searchable</td>
+          </tr>
+          <tr class="hl">
+            <td><strong>Oversight</strong></td>
+            <td><span class="tag tag-blue">Any camera (existing or new)</span></td>
+            <td>Mid-market</td>
+            <td>€49–99/zone/mo</td>
+            <td><em>The product this row has been waiting for</em></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- TIERS -->
+  <section>
+    <div class="section-label">Product &amp; Pricing</div>
+    <h2>Two tiers. Same software. Different hardware assumption.</h2>
+    <p>One avoided freight dispute (avg €500–3,000) recoups 6–36 months of subscription. That is the ROI anchor in every sales conversation.</p>
+    <div class="tier-grid">
+      <div class="tier-card">
+        <h3>Base</h3>
+        <div class="price">€49–99 / zone / month · Software only</div>
+        <ul>
+          <li>Works with any existing IP camera via RTSP / ONVIF</li>
+          <li>No hardware purchase, no installation project</li>
+          <li>Same three tasks: Documentation, OCR, Inspection</li>
+          <li>Cloud evidence storage with configurable retention</li>
+          <li>PDF reports, webhook delivery, evidence export</li>
+          <li>Self-serve onboarding, live within an afternoon</li>
+        </ul>
+      </div>
+      <div class="tier-card featured">
+        <div class="tier-badge">Recommended</div>
+        <h3>Solution</h3>
+        <div class="price">€149–220 setup + €49–99 / zone / month</div>
+        <ul>
+          <li>Same software as Base</li>
+          <li>Bundled dedicated camera matched to task and environment</li>
+          <li>Cam A: Standard indoor (€40) · Cam B: Outdoor/harsh (€65) · Cam C: Cold storage (€90)</li>
+          <li>Plug-and-play: power on, scan QR, stream connects automatically</li>
+          <li>Meaningfully better damage detection at 1.5–2m mount height</li>
+          <li>Recommended for dock condition documentation</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- GTM -->
+  <section>
+    <div class="section-label">Go to Market</div>
+    <h2>Start narrow. One use case, one geography, one demo.</h2>
+    <div class="gtm-row">
+      <div class="gtm-card">
+        <div class="gtm-phase">Phase 1: Now</div>
+        <h3>Home Demo &amp; First Pilots</h3>
+        <p>Build the end-to-end demo with a Reolink camera at a real loading scenario. Target 3–5 logistics operators within driving distance of Prague (Amazon, DHL, Geis, DACHSER all have major DC presence). Offer free pilot in exchange for structured feedback and a case study.</p>
+      </div>
+      <div class="gtm-card">
+        <div class="gtm-phase">Phase 2: Q3 2026</div>
+        <h3>CEE/EU Direct Sales</h3>
+        <p>Convert pilots to paid accounts. Dock documentation as the anchor use case. Add OCR and Inspection as upsell to existing zones. Target 20–50 paying zones at €49–99/zone/month. Self-serve onboarding removes the need for a sales team.</p>
+      </div>
+      <div class="gtm-card">
+        <div class="gtm-phase">Phase 3: 2027</div>
+        <h3>Platform &amp; Integrations</h3>
+        <p>Webhook and API layer enables WMS/TMS integrations. Partner with freight forwarders and 3PL software vendors as a white-label evidence module. Expand use cases from dock to the full logistics chain: yard, gate, port interchange, reefer check.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- VISION -->
+  <section>
+    <div class="section-label">Vision</div>
+    <h2>The infrastructure layer for liability at every oversight point.</h2>
+    <div class="vision-block">
+      <p>
+        Every time a physical asset changes hands (a pallet onto a truck, a container into a terminal, a vehicle through a gate) there is a liability question. <strong>Oversight's goal is to make that question answerable automatically, everywhere, for any operator.</strong>
+      </p>
+      <p>
+        The dock is the wedge. The platform is broader. Oversight is infrastructure for documented custody at any physical oversight: logistics, cold chain, ports, industrial maintenance handovers. The camera is the input. The evidence record is the product.
+      </p>
+      <p>
+        The moat is not the AI model. It is the evidence record itself: timestamped, camera-verified, legally defensible. Once operators have six months of Oversight evidence in a dispute they win, they do not stop using it.
+      </p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span><strong>Oversight</strong> · Proof at every oversight.</span>
+    <span>oversight.ai · alphandaryomer@gmail.com · Early development · March 2026</span>
+  </div>
+
+</div>
+</body>
+</html>

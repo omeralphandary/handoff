@@ -1,4 +1,4 @@
-# Handoff
+# Oversight
 
 **Proof at every handoff.**
 
@@ -6,7 +6,7 @@ Visual proof of condition at every point cargo changes hands.
 
 ---
 
-Handoff is a hardware-agnostic vision platform for logistics and industrial environments. It documents the state of cargo, vehicles, and equipment at handoff points — dock doors, yard gates, port interchanges — automatically, using the camera of your choice.
+Oversight is a hardware-agnostic vision platform for logistics and industrial environments. It documents the state of cargo, vehicles, and equipment at handoff points — dock doors, yard gates, port interchanges — automatically, using the camera of your choice.
 
 ## The Problem
 
@@ -14,7 +14,7 @@ Every time cargo changes hands, there is a liability question. A pallet arrives 
 
 The current process: a photo on someone's phone, if they remember to take it.
 
-## What Handoff Does
+## What Oversight Does
 
 - Connects to any IP camera via RTSP / ONVIF
 - One-time setup: draw a polygon over the area of interest, choose a task

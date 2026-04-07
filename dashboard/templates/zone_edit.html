@@ -27,6 +27,22 @@
   }
   .trigger-label:has(input:checked) { border-color: #3b82f6; color: #e5e5e5; }
   .trigger-label input[type="radio"] { accent-color: #3b82f6; cursor: pointer; }
+  .class-checkboxes {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0;
+  }
+  .class-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #aaa; cursor: pointer; user-select: none;
+    padding: 5px 12px; border: 1px solid #222; border-radius: 5px;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .class-label:has(input:checked) { border-color: #3b82f6; color: #e5e5e5; background: #1e3a5f22; }
+  .class-label input[type="checkbox"] { accent-color: #3b82f6; cursor: pointer; }
+
+  .poly-wrap { position: relative; width: 100%; background: #0a0a0a; border-radius: 6px; overflow: hidden; line-height: 0; }
+  .poly-wrap canvas { display: block; width: 100%; cursor: crosshair; }
+  .poly-hint { font-size: 12px; color: #555; margin-top: 8px; }
+  .poly-actions { display: flex; gap: 8px; margin-top: 10px; }
 </style>
 {% endblock %}
 
@@ -63,6 +79,10 @@
               Motion
             </label>
             <label class="trigger-label">
+              <input type="radio" name="trigger_mode" value="by_class" {% if tm == 'by_class' %}checked{% endif %} onchange="onTriggerChange(this.value)">
+              By class
+            </label>
+            <label class="trigger-label">
               <input type="radio" name="trigger_mode" value="sequence" {% if tm == 'sequence' %}checked{% endif %} onchange="onTriggerChange(this.value)">
               Time interval
             </label>
@@ -72,12 +92,25 @@
             </label>
           </div>
         </div>
-        <div class="form-group" id="field-motion_threshold" {% if tm != 'motion' %}style="display:none;"{% endif %}>
+        <div class="form-group full" id="field-trigger_classes" {% if tm != 'by_class' %}style="display:none;"{% endif %}>
+          <label>Detect these classes <span style="color:#555;font-weight:400;">(YOLO runs locally before VLM)</span></label>
+          <div class="class-checkboxes">
+            {% for cls in trigger_classes %}
+            <label class="class-label">
+              <input type="checkbox" name="trigger_classes" value="{{ cls }}"
+                     {% if cls in zone.trigger_classes %}checked{% endif %}>
+              {{ cls }}
+            </label>
+            {% endfor %}
+          </div>
+          <span class="form-hint">Motion still gates the check — YOLO only runs when movement is detected.</span>
+        </div>
+        <div class="form-group" id="field-motion_threshold" {% if tm not in ('motion', 'by_class') %}style="display:none;"{% endif %}>
           <label for="motion_threshold">Motion sensitivity (0.01–0.5)</label>
           <input id="motion_threshold" name="motion_threshold" type="number" value="{{ zone.motion_threshold }}" min="0.001" max="0.5" step="0.005">
           <span class="form-hint">Lower = more sensitive</span>
         </div>
-        <div class="form-group" id="field-cooldown_seconds" {% if tm != 'motion' %}style="display:none;"{% endif %}>
+        <div class="form-group" id="field-cooldown_seconds" {% if tm not in ('motion', 'by_class') %}style="display:none;"{% endif %}>
           <label for="cooldown_seconds">Motion cooldown (seconds)</label>
           <input id="cooldown_seconds" name="cooldown_seconds" type="number" value="{{ zone.cooldown_seconds }}" min="1" step="0.5">
         </div>
@@ -91,6 +124,20 @@
           <input id="retention_days" name="retention_days" type="number" value="{{ zone.retention_days }}" min="1" max="3650">
         </div>
       </div>
+      <input type="hidden" name="polygon" id="polygon-input" value="{{ zone.polygon | tojson }}">
+
+      <div class="form-group full" style="margin-top: 8px;">
+        <label>Zone area <span style="color:#555;font-weight:400;">(optional — draw to restrict analysis to a region)</span></label>
+        <div class="poly-wrap">
+          <canvas id="poly-canvas"></canvas>
+        </div>
+        <p class="poly-hint">Click to add points · Right-click to undo last · Faster snapshot when zone is active</p>
+        <div class="poly-actions">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearPoly()">Clear polygon</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="loadSnapshot()">Refresh snapshot</button>
+        </div>
+      </div>
+
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Save changes</button>
         <a href="/zones/{{ zone.id }}" class="btn btn-secondary">Cancel</a>
@@ -110,9 +157,116 @@
 {% block scripts %}
 <script>
 function onTriggerChange(mode) {
-  document.getElementById('field-motion_threshold').style.display = mode === 'motion' ? '' : 'none';
-  document.getElementById('field-cooldown_seconds').style.display  = mode === 'motion' ? '' : 'none';
+  const motionLike = mode === 'motion' || mode === 'by_class';
+  document.getElementById('field-trigger_classes').style.display  = mode === 'by_class' ? '' : 'none';
+  document.getElementById('field-motion_threshold').style.display = motionLike ? '' : 'none';
+  document.getElementById('field-cooldown_seconds').style.display  = motionLike ? '' : 'none';
   document.getElementById('field-sequence_interval').style.display = mode === 'sequence' ? '' : 'none';
 }
+
+// Polygon editor
+const canvas = document.getElementById('poly-canvas');
+const ctx = canvas.getContext('2d');
+let img = new Image();
+let points = JSON.parse(document.getElementById('polygon-input').value || '[]');
+// Normalised [x,y] pairs → convert old [[x,y],...] format
+if (points.length && Array.isArray(points[0])) {
+  // already [[x,y],...] — keep as-is
+} else {
+  points = [];
+}
+
+function setCanvasSize() {
+  const w = canvas.parentElement.clientWidth;
+  const h = img.naturalHeight ? Math.round(w * img.naturalHeight / img.naturalWidth) : Math.round(w * 9/16);
+  canvas.width = w;
+  canvas.height = h;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (img.complete && img.naturalWidth) {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#333';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Start zone and click "Refresh snapshot"', canvas.width / 2, canvas.height / 2);
+  }
+  if (points.length === 0) return;
+  const px = points.map(([nx, ny]) => [nx * canvas.width, ny * canvas.height]);
+  // Fill
+  ctx.beginPath();
+  ctx.moveTo(px[0][0], px[0][1]);
+  px.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(96,165,250,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Points
+  px.forEach(([x, y], i) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? '#60a5fa' : '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+}
+
+function savePoints() {
+  document.getElementById('polygon-input').value = JSON.stringify(points);
+}
+
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  const nx = (e.clientX - r.left) / r.width;
+  const ny = (e.clientY - r.top) / r.height;
+  points.push([parseFloat(nx.toFixed(4)), parseFloat(ny.toFixed(4))]);
+  savePoints();
+  draw();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (points.length) { points.pop(); savePoints(); draw(); }
+});
+
+function clearPoly() {
+  points = [];
+  savePoints();
+  draw();
+}
+
+async function loadSnapshot() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    // Prefer the running stream's snapshot — avoids competing RTSP connection
+    let r = await fetch('/zones/{{ zone.id }}/snapshot');
+    if (!r.ok) {
+      // Zone not active — spin up a one-shot grab
+      const fd = new FormData();
+      fd.append('camera_url', document.getElementById('camera_url').value.trim());
+      r = await fetch('/zones/preview-frame', {method: 'POST', body: fd});
+    }
+    if (r.ok) {
+      const blob = await r.blob();
+      img = new Image();
+      img.onload = () => { setCanvasSize(); draw(); };
+      img.src = URL.createObjectURL(blob);
+    }
+  } catch(e) {}
+  btn.disabled = false; btn.textContent = 'Refresh snapshot';
+}
+
+setCanvasSize();
+draw();
+window.addEventListener('resize', () => { setCanvasSize(); draw(); });
 </script>
 {% endblock %}

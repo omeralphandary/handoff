@@ -8,19 +8,50 @@
 {% block head %}
 <style>
   .wizard { max-width: 680px; }
+
+  /* Step indicator */
+  .step-bar {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 28px;
+  }
+  .step-item {
+    display: flex; align-items: center; gap: 10px; flex: 1;
+  }
+  .step-item:last-child { flex: none; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+    background: #1a1a1a; border: 1px solid #2a2a2a; color: #555;
+  }
+  .step-num.active { background: #1d4ed8; border-color: #2563eb; color: #fff; }
+  .step-num.done { background: #166534; border-color: #15803d; color: #fff; }
+  .step-label { font-size: 12px; color: #555; white-space: nowrap; }
+  .step-label.active { color: #e5e5e5; }
+  .step-connector { flex: 1; height: 1px; background: #1e1e1e; margin: 0 10px; }
+
+  /* Steps */
+  .step-pane { display: none; }
+  .step-pane.active { display: block; }
+
+  /* Form */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .form-group.full { grid-column: 1 / -1; }
+  .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 22px; }
+
+  /* Connection test */
+  .test-row { display: flex; gap: 10px; align-items: flex-end; }
+  .test-row .form-group { flex: 1; margin-bottom: 0; }
+  .test-result { font-size: 13px; margin-top: 8px; padding: 8px 12px; border-radius: 5px; display: none; }
+  .test-result.ok  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+  .test-result.err { background: #2d0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+
+  /* Task types */
   .task-checkboxes { display: flex; gap: 18px; align-items: center; padding: 9px 0; flex-wrap: wrap; }
-  .checkbox-label {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 14px; color: #aaa; cursor: pointer; user-select: none;
-  }
+  .checkbox-label { display: flex; align-items: center; gap: 7px; font-size: 14px; color: #aaa; cursor: pointer; user-select: none; }
   .checkbox-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
-  .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
-  .section-note {
-    font-size: 12px; color: #444; margin-bottom: 20px; line-height: 1.6;
-    padding: 12px 14px; background: #111; border: 1px solid #1e1e1e; border-radius: 7px;
-  }
+
+  /* Trigger */
   .trigger-options { display: flex; gap: 10px; padding: 9px 0; flex-wrap: wrap; }
   .trigger-label {
     display: flex; align-items: center; gap: 7px;
@@ -29,91 +60,324 @@
   }
   .trigger-label:has(input:checked) { border-color: #3b82f6; color: #e5e5e5; }
   .trigger-label input[type="radio"] { accent-color: #3b82f6; cursor: pointer; }
+  .class-checkboxes {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0;
+  }
+  .class-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #aaa; cursor: pointer; user-select: none;
+    padding: 5px 12px; border: 1px solid #222; border-radius: 5px;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .class-label:has(input:checked) { border-color: #3b82f6; color: #e5e5e5; background: #1e3a5f22; }
+  .class-label input[type="checkbox"] { accent-color: #3b82f6; cursor: pointer; }
+
+  /* Polygon canvas */
+  .poly-wrap { position: relative; width: 100%; background: #0a0a0a; border-radius: 6px; overflow: hidden; line-height: 0; }
+  .poly-wrap canvas { display: block; width: 100%; cursor: crosshair; }
+  .poly-hint { font-size: 12px; color: #555; margin-top: 8px; }
+  .poly-actions { display: flex; gap: 8px; margin-top: 10px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wizard">
-  <div class="section-note">
-    A zone is a monitored area tied to a camera feed. Assign one or more task types to control what AI checks run on each captured frame.
+
+  <!-- Step indicator -->
+  <div class="step-bar">
+    <div class="step-item">
+      <div class="step-num active" id="snum-1">1</div>
+      <span class="step-label active" id="slbl-1">Connect</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item">
+      <div class="step-num" id="snum-2">2</div>
+      <span class="step-label" id="slbl-2">Zone area</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-item">
+      <div class="step-num" id="snum-3">3</div>
+      <span class="step-label" id="slbl-3">Trigger</span>
+    </div>
   </div>
 
-  <div class="card">
-    <form method="post" action="/zones" novalidate>
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="name">Zone name</label>
-          <input id="name" name="name" type="text" placeholder="Dock A — inbound" required autofocus>
-        </div>
-        <div class="form-group">
-          <label>Task types</label>
-          <div class="task-checkboxes">
-            {% for t in task_types %}
-            <label class="checkbox-label">
-              <input type="checkbox" name="task_types" value="{{ t }}" {% if t == 'documentation' %}checked{% endif %}>
-              {{ t }}
-            </label>
-            {% endfor %}
+  <form method="post" action="/zones" novalidate id="wizard-form">
+    <input type="hidden" name="polygon" id="polygon-input" value="[]">
+
+    <!-- ── Step 1: Connect ───────────────────────────────────── -->
+    <div class="step-pane active" id="step-1">
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label for="name">Zone name</label>
+            <input id="name" name="name" type="text" placeholder="Dock A — inbound" required autofocus>
+          </div>
+          <div class="form-group full">
+            <label for="camera_url">Camera URL</label>
+            <div class="test-row">
+              <div class="form-group">
+                <input id="camera_url" name="camera_url" type="text"
+                       placeholder="rtsp://admin:pass@192.168.1.100:554/stream" required>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="testCamera()" id="test-btn">Test</button>
+            </div>
+            <div class="test-result" id="test-result"></div>
           </div>
         </div>
-        <div class="form-group full">
-          <label for="camera_url">Camera URL</label>
-          <input id="camera_url" name="camera_url" type="text" placeholder="rtsp://192.168.1.100:554/stream1" required>
-          <span class="form-hint">RTSP, ONVIF, or a local file path for testing</span>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="goStep(2)">Next →</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Zone area ─────────────────────────────────── -->
+    <div class="step-pane" id="step-2">
+      <div class="card">
         <div class="form-group full">
-          <label>Trigger method</label>
-          <div class="trigger-options">
-            <label class="trigger-label">
-              <input type="radio" name="trigger_mode" value="motion" checked onchange="onTriggerChange(this.value)">
-              Motion
-            </label>
-            <label class="trigger-label">
-              <input type="radio" name="trigger_mode" value="sequence" onchange="onTriggerChange(this.value)">
-              Time interval
-            </label>
-            <label class="trigger-label">
-              <input type="radio" name="trigger_mode" value="manual" onchange="onTriggerChange(this.value)">
-              Manual
-            </label>
+          <label>Zone area <span style="color:#555;font-weight:400;">— optional, draw to restrict analysis to a region</span></label>
+          <div class="poly-wrap">
+            <canvas id="poly-canvas"></canvas>
+          </div>
+          <p class="poly-hint">Click to add points · Right-click to undo last point</p>
+          <div class="poly-actions">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadSnapshot()">Load camera snapshot</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="clearPoly()">Clear</button>
           </div>
         </div>
-        <div class="form-group" id="field-motion_threshold">
-          <label for="motion_threshold">Motion sensitivity (0.01–0.5)</label>
-          <input id="motion_threshold" name="motion_threshold" type="number" value="0.02" min="0.001" max="0.5" step="0.005">
-          <span class="form-hint">Fraction of pixels that must change to trigger. Lower = more sensitive.</span>
-        </div>
-        <div class="form-group" id="field-cooldown_seconds">
-          <label for="cooldown_seconds">Motion cooldown (seconds)</label>
-          <input id="cooldown_seconds" name="cooldown_seconds" type="number" value="10" min="1" step="0.5">
-          <span class="form-hint">Minimum gap between motion captures</span>
-        </div>
-        <div class="form-group full" id="field-sequence_interval" style="display:none;">
-          <label for="sequence_interval">Capture interval (seconds)</label>
-          <input id="sequence_interval" name="sequence_interval" type="number" value="30" min="1" step="1">
-          <span class="form-hint">Capture a frame every N seconds regardless of motion.</span>
-        </div>
-        <div class="form-group">
-          <label for="retention_days">Retention (days)</label>
-          <input id="retention_days" name="retention_days" type="number" value="90" min="1" max="3650">
-          <span class="form-hint">How long to keep captured records</span>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="goStep(3)">Next →</button>
+          <button type="button" class="btn btn-secondary" onclick="goStep(1)">← Back</button>
         </div>
       </div>
-      <div class="form-actions" style="margin-top:22px;">
-        <button type="submit" class="btn btn-primary">Create zone</button>
-        <a href="/zones" class="btn btn-secondary">Cancel</a>
+    </div>
+
+    <!-- ── Step 3: Trigger ───────────────────────────────────── -->
+    <div class="step-pane" id="step-3">
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Task types</label>
+            <div class="task-checkboxes">
+              {% for t in task_types %}
+              <label class="checkbox-label">
+                <input type="checkbox" name="task_types" value="{{ t }}" {% if t == 'documentation' %}checked{% endif %}>
+                {{ t }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Trigger method</label>
+            <div class="trigger-options">
+              <label class="trigger-label">
+                <input type="radio" name="trigger_mode" value="motion" checked onchange="onTriggerChange(this.value)">
+                Motion
+              </label>
+              <label class="trigger-label">
+                <input type="radio" name="trigger_mode" value="by_class" onchange="onTriggerChange(this.value)">
+                By class
+              </label>
+              <label class="trigger-label">
+                <input type="radio" name="trigger_mode" value="sequence" onchange="onTriggerChange(this.value)">
+                Time interval
+              </label>
+              <label class="trigger-label">
+                <input type="radio" name="trigger_mode" value="manual" onchange="onTriggerChange(this.value)">
+                Manual
+              </label>
+            </div>
+          </div>
+          <div class="form-group full" id="field-trigger_classes" style="display:none;">
+            <label>Detect these classes <span style="color:#555;font-weight:400;">(YOLO runs locally before VLM)</span></label>
+            <div class="class-checkboxes">
+              {% for cls in trigger_classes %}
+              <label class="class-label">
+                <input type="checkbox" name="trigger_classes" value="{{ cls }}">
+                {{ cls }}
+              </label>
+              {% endfor %}
+            </div>
+            <span class="form-hint">Motion still gates the check — YOLO only runs when movement is detected.</span>
+          </div>
+          <div class="form-group" id="field-motion_threshold">
+            <label for="motion_threshold">Motion sensitivity</label>
+            <input id="motion_threshold" name="motion_threshold" type="number" value="0.02" min="0.001" max="0.5" step="0.005">
+            <span class="form-hint">Lower = more sensitive</span>
+          </div>
+          <div class="form-group" id="field-cooldown_seconds">
+            <label for="cooldown_seconds">Cooldown (seconds)</label>
+            <input id="cooldown_seconds" name="cooldown_seconds" type="number" value="10" min="1" step="0.5">
+          </div>
+          <div class="form-group full" id="field-sequence_interval" style="display:none;">
+            <label for="sequence_interval">Capture interval (seconds)</label>
+            <input id="sequence_interval" name="sequence_interval" type="number" value="30" min="1" step="1">
+          </div>
+          <div class="form-group">
+            <label for="retention_days">Retention (days)</label>
+            <input id="retention_days" name="retention_days" type="number" value="90" min="1" max="3650">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Create zone</button>
+          <button type="button" class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+        </div>
       </div>
-    </form>
-  </div>
+    </div>
+
+  </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ── Step navigation ──────────────────────────────────────────────
+function goStep(n) {
+  if (n === 2 && !validateStep1()) return;
+  document.querySelectorAll('.step-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  [1, 2, 3].forEach(i => {
+    document.getElementById('snum-' + i).className = 'step-num' + (i < n ? ' done' : i === n ? ' active' : '');
+    document.getElementById('slbl-' + i).className = 'step-label' + (i === n ? ' active' : '');
+  });
+  if (n === 2) initCanvas();
+}
+
+function validateStep1() {
+  const name = document.getElementById('name').value.trim();
+  const url  = document.getElementById('camera_url').value.trim();
+  if (!name || !url) { alert('Please fill in zone name and camera URL.'); return false; }
+  return true;
+}
+
+// ── Camera test ──────────────────────────────────────────────────
+async function testCamera() {
+  const url = document.getElementById('camera_url').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('test-btn');
+  const res = document.getElementById('test-result');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  res.style.display = 'none';
+  try {
+    const fd = new FormData(); fd.append('camera_url', url);
+    const r = await fetch('/zones/preview-frame', {method: 'POST', body: fd});
+    if (r.ok) {
+      res.className = 'test-result ok'; res.textContent = 'Camera reachable — snapshot grabbed successfully.';
+    } else {
+      res.className = 'test-result err'; res.textContent = 'Could not grab a frame — check URL and camera accessibility.';
+    }
+  } catch(e) {
+    res.className = 'test-result err'; res.textContent = 'Request failed: ' + e.message;
+  }
+  res.style.display = 'block';
+  btn.disabled = false; btn.textContent = 'Test';
+}
+
+// ── Trigger toggle ───────────────────────────────────────────────
 function onTriggerChange(mode) {
-  document.getElementById('field-motion_threshold').style.display = mode === 'motion' ? '' : 'none';
-  document.getElementById('field-cooldown_seconds').style.display  = mode === 'motion' ? '' : 'none';
+  const motionLike = mode === 'motion' || mode === 'by_class';
+  document.getElementById('field-trigger_classes').style.display  = mode === 'by_class' ? '' : 'none';
+  document.getElementById('field-motion_threshold').style.display  = motionLike ? '' : 'none';
+  document.getElementById('field-cooldown_seconds').style.display  = motionLike ? '' : 'none';
   document.getElementById('field-sequence_interval').style.display = mode === 'sequence' ? '' : 'none';
 }
+
+// ── Polygon editor ───────────────────────────────────────────────
+const canvas = document.getElementById('poly-canvas');
+const ctx = canvas.getContext('2d');
+let bgImg = new Image();
+let points = [];
+let canvasReady = false;
+
+function initCanvas() {
+  if (canvasReady) return;
+  canvasReady = true;
+  setCanvasSize();
+  drawCanvas();
+}
+
+function setCanvasSize() {
+  const w = canvas.parentElement.clientWidth;
+  const h = bgImg.naturalHeight ? Math.round(w * bgImg.naturalHeight / bgImg.naturalWidth) : Math.round(w * 9 / 16);
+  canvas.width = w;
+  canvas.height = h;
+}
+
+function drawCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (bgImg.complete && bgImg.naturalWidth) {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#2a2a2a';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click "Load camera snapshot" to load a preview', canvas.width / 2, canvas.height / 2);
+  }
+  if (!points.length) return;
+  const px = points.map(([nx, ny]) => [nx * canvas.width, ny * canvas.height]);
+  ctx.beginPath();
+  ctx.moveTo(px[0][0], px[0][1]);
+  px.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(96,165,250,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  px.forEach(([x, y], i) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? '#60a5fa' : '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+}
+
+function savePoints() {
+  document.getElementById('polygon-input').value = JSON.stringify(points);
+}
+
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  points.push([
+    parseFloat(((e.clientX - r.left) / r.width).toFixed(4)),
+    parseFloat(((e.clientY - r.top)  / r.height).toFixed(4)),
+  ]);
+  savePoints(); drawCanvas();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (points.length) { points.pop(); savePoints(); drawCanvas(); }
+});
+
+function clearPoly() { points = []; savePoints(); drawCanvas(); }
+
+async function loadSnapshot() {
+  const url = document.getElementById('camera_url').value.trim();
+  if (!url) { alert('Enter the camera URL in step 1 first.'); return; }
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    const fd = new FormData(); fd.append('camera_url', url);
+    const r = await fetch('/zones/preview-frame', {method: 'POST', body: fd});
+    if (r.ok) {
+      const blob = await r.blob();
+      bgImg = new Image();
+      bgImg.onload = () => { setCanvasSize(); drawCanvas(); };
+      bgImg.src = URL.createObjectURL(blob);
+    } else {
+      alert('Could not load snapshot — ensure the camera URL is correct and reachable.');
+    }
+  } catch(e) {
+    alert('Failed: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = 'Load camera snapshot';
+}
+
+window.addEventListener('resize', () => { if (canvasReady) { setCanvasSize(); drawCanvas(); } });
 </script>
 {% endblock %}

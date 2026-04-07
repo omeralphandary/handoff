@@ -21,6 +21,7 @@
   <a href="/zones/{{ zone.id }}/stream" target="_blank" class="btn btn-secondary btn-sm">Live View</a>
   {% endif %}
   <a href="/zones/{{ zone.id }}/edit" class="btn btn-secondary btn-sm">Edit</a>
+  <a href="/app/?graph={{ zone.id }}" class="btn btn-secondary btn-sm">Canvas</a>
 {% endblock %}
 
 {% block head %}
@@ -77,6 +78,19 @@
   }
   .cam-preview-wrap:active { cursor: grabbing; }
   .cam-preview img { width: 100%; display: block; transform-origin: 0 0; transition: none; user-select: none; }
+  .cam-loading {
+    display: none; position: absolute; inset: 0;
+    align-items: center; justify-content: center;
+    background: #111; flex-direction: column; gap: 12px;
+  }
+  .cam-loading.active { display: flex; }
+  .cam-spinner {
+    width: 32px; height: 32px; border: 3px solid #222;
+    border-top-color: #60a5fa; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .cam-loading-label { font-size: 12px; color: #555; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .cam-controls { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
   .cam-section-title {
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
@@ -141,7 +155,13 @@
   <tbody>
     {% for c in captures %}
     <tr class="{% if c.flagged %}flagged{% endif %}" style="cursor:pointer;" onclick="location.href='/captures/{{ c.capture_id }}'">
-      <td class="ts">{{ c.timestamp[:19].replace('T', ' ') }}</td>
+      <td class="ts">
+        {{ c.timestamp[:19].replace('T', ' ') }}
+        {% set tb = c.get('triggered_by') or (c.result.get('triggered_by') if c.result else none) %}
+        {% if tb %}
+        <span style="color:#a78bfa;font-size:11px;margin-left:6px;">↳ {{ tb | join(', ') }}</span>
+        {% endif %}
+      </td>
       <td>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">
           {% for t in c.task_types %}
@@ -153,6 +173,9 @@
         <span class="badge {% if c.flagged %}badge-fail{% else %}badge-pass{% endif %}">
           {% if c.flagged %}flagged{% else %}pass{% endif %}
         </span>
+        {% if c.condition_score is not none %}
+        <span style="font-size:12px;color:#555;margin-left:6px;">{{ c.condition_score }}/5</span>
+        {% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -174,12 +197,17 @@
       <div class="cam-preview">
         <div class="cam-preview-wrap" id="cam-wrap">
           <img id="cam-stream" src="" alt="Live view" draggable="false">
+          <div class="cam-loading" id="cam-loading">
+            <div class="cam-spinner"></div>
+            <span class="cam-loading-label" id="cam-loading-label">Connecting…</span>
+          </div>
         </div>
         <div style="display:flex;gap:8px;width:100%;">
           <button class="btn btn-secondary btn-sm" onclick="resetZoom()" style="flex:1;">Reset Zoom</button>
-          <form method="post" action="/zones/{{ zone.id }}/reconnect" style="flex:1;">
-            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;">Reconnect</button>
-          </form>
+          <button class="btn btn-secondary btn-sm" onclick="restartZone(this)"
+                  data-stop-url="/zones/{{ zone.id }}/stop"
+                  data-start-url="/zones/{{ zone.id }}/start"
+                  style="flex:1;">Restart Zone</button>
         </div>
       </div>
 
@@ -247,10 +275,93 @@
 
 {% block scripts %}
 <script>
-  let reloadTimer = setTimeout(() => location.reload(), 5000);
+  // --- Inference indicator & status polling ---
+  const STATUS_URL = '/zones/{{ zone.id }}/status';
+  let reloadTimer = null;
+  let pollTimer = null;
+  let wasInferring = false;
+
+  function showInferIndicator(label) {
+    const el = document.getElementById('infer-indicator');
+    if (el) {
+      document.getElementById('infer-indicator-label').textContent = label || 'Analyzing…';
+      el.classList.add('active');
+    }
+  }
+
+  function hideInferIndicator() {
+    const el = document.getElementById('infer-indicator');
+    if (el) el.classList.remove('active');
+  }
+
+  async function pollStatus() {
+    try {
+      const r = await fetch(STATUS_URL);
+      if (!r.ok) return;
+      const s = await r.json();
+      if (s.inferring) {
+        wasInferring = true;
+        showInferIndicator('Analyzing…');
+      } else if (wasInferring) {
+        wasInferring = false;
+        hideInferIndicator();
+        // Don't reload while camera settings modal is open — user is actively adjusting
+        if (!document.getElementById('cam-overlay').classList.contains('open')) {
+          location.reload();
+          return;
+        }
+      }
+    } catch (e) {}
+    pollTimer = setTimeout(pollStatus, 400);
+  }
+
+  // Auto-reload only when not inferring and camera settings modal is closed
+  function scheduleReload() {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => {
+      if (!wasInferring && !document.getElementById('cam-overlay').classList.contains('open')) {
+        location.reload();
+      } else {
+        scheduleReload();
+      }
+    }, 5000);
+  }
+
+  scheduleReload();
+  pollStatus();
+
+  // Manual capture — show indicator immediately, polling takes over from there
+  const form = document.getElementById('capture-form');
+  if (form) {
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      clearTimeout(reloadTimer);
+      const btn = document.getElementById('capture-btn');
+      btn.disabled = true;
+      showInferIndicator('Capturing…');
+      fetch(form.action, {method: 'POST', redirect: 'manual'}).then(() => {
+        wasInferring = true;
+      }).catch(() => {
+        hideInferIndicator();
+        btn.disabled = false;
+      });
+    });
+  }
+
+  function setStreamLoading(label) {
+    document.getElementById('cam-loading-label').textContent = label || 'Connecting…';
+    document.getElementById('cam-loading').classList.add('active');
+  }
+
+  function clearStreamLoading() {
+    document.getElementById('cam-loading').classList.remove('active');
+  }
+
+  document.getElementById('cam-stream').addEventListener('load', clearStreamLoading);
 
   function openCameraSettings() {
     clearTimeout(reloadTimer);
+    setStreamLoading('Connecting…');
     document.getElementById('cam-stream').src = '/zones/{{ zone.id }}/stream';
     document.getElementById('cam-overlay').classList.add('open');
   }
@@ -258,21 +369,11 @@
   function closeCameraSettings() {
     document.getElementById('cam-stream').src = '';
     document.getElementById('cam-overlay').classList.remove('open');
-    reloadTimer = setTimeout(() => location.reload(), 5000);
-  }
-
-  const form = document.getElementById('capture-form');
-  if (form) {
-    form.addEventListener('submit', () => {
-      const btn = document.getElementById('capture-btn');
-      btn.disabled = true;
-      btn.textContent = 'Capturing…';
-      btn.style.opacity = '0.5';
-      btn.style.cursor = 'not-allowed';
-    });
+    scheduleReload();
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCameraSettings(); });
+
 
   // Zoom + pan on live preview
   let scale = 1, panX = 0, panY = 0, dragging = false, startX, startY;
@@ -316,6 +417,25 @@
   function camPost(url, data) {
     const body = new URLSearchParams(data);
     fetch(url, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+  }
+
+  async function restartZone(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Stopping…';
+    setStreamLoading('Stopping…');
+    document.getElementById('cam-stream').src = '';
+    await fetch(btn.dataset.stopUrl, {method: 'POST', redirect: 'manual'});
+    btn.textContent = 'Starting…';
+    setStreamLoading('Starting…');
+    await fetch(btn.dataset.startUrl, {method: 'POST', redirect: 'manual'});
+    setStreamLoading('Connecting…');
+    // Wait for camera to produce first frame
+    await new Promise(r => setTimeout(r, 8000));
+    // Cache-bust so browser opens a fresh connection
+    document.getElementById('cam-stream').src = '/zones/{{ zone.id }}/stream?t=' + Date.now();
+    btn.textContent = 'Restart Zone';
+    btn.disabled = false;
+    // cam-loading cleared by img load event
   }
 
   function toggleLed(btn) {

@@ -19,6 +19,7 @@ class CameraStream:
         self.url = url
         self.fps_limit = fps_limit
         self._frame: np.ndarray | None = None
+        self._frame_time: float = 0.0
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._proc: subprocess.Popen | None = None
@@ -51,8 +52,12 @@ class CameraStream:
         with self._lock:
             return self._frame.copy() if self._frame is not None else None
 
+    @property
+    def last_frame_time(self) -> float:
+        return self._frame_time
+
     def _get_dimensions(self) -> tuple[int, int]:
-        """Probe stream dimensions via ffprobe."""
+        """Probe stream dimensions via ffprobe, capped at 1920 wide."""
         cmd = [
             "ffprobe", "-v", "error",
             "-rtsp_transport", "tcp",
@@ -62,9 +67,13 @@ class CameraStream:
             self.url,
         ]
         try:
-            out = subprocess.check_output(cmd, timeout=10, stderr=subprocess.DEVNULL)
-            w, h = out.decode().strip().split(",")
-            return int(w), int(h)
+            out = subprocess.check_output(cmd, timeout=5, stderr=subprocess.DEVNULL)
+            w, h = (int(x) for x in out.decode().strip().split(","))
+            # Mirror the scale filter: cap width at 1920, keep aspect ratio
+            if w > 1920:
+                h = round(h * 1920 / w / 2) * 2  # ensure even height
+                w = 1920
+            return w, h
         except Exception:
             log.warning("[camera] ffprobe failed — using fallback 1920x1080")
             return 1920, 1080
@@ -72,17 +81,23 @@ class CameraStream:
     def _read_loop(self) -> None:
         interval = 1.0 / self.fps_limit
         while not self._stop.is_set():
-            log.info("[camera] probing stream dimensions...")
-            w, h = self._get_dimensions()
+            if not self._width or not self._height:
+                log.info("[camera] probing stream dimensions...")
+                self._width, self._height = self._get_dimensions()
+            w, h = self._width, self._height
             frame_size = w * h * 3
             cmd = [
                 "ffmpeg", "-loglevel", "error",
                 "-rtsp_transport", "tcp",
-                "-fflags", "+discardcorrupt+nobuffer",
+                "-timeout", "10000000",          # socket timeout (µs) for RTSP
+                "-probesize", "32",             # minimal probe, faster connect
+                "-analyzeduration", "0",        # don't wait to analyze stream
+                "-fflags", "+discardcorrupt+nobuffer+genpts",
                 "-flags", "low_delay",
                 "-err_detect", "ignore_err",
+                "-max_error_rate", "1.0",       # keep going on decode errors
                 "-i", self.url,
-                "-vf", f"fps={self.fps_limit}",
+                "-vf", f"scale='min(1920,iw)':-2,fps={self.fps_limit}",
                 "-f", "rawvideo",
                 "-pix_fmt", "bgr24",
                 "pipe:1",
@@ -116,10 +131,14 @@ class CameraStream:
                         )
                         break
                     frame = np.frombuffer(raw, dtype=np.uint8).reshape((h, w, 3))
+                    # Skip grey/corrupted frames (near-uniform pixel values)
+                    if frame.std() < 4:
+                        log.debug("[camera] skipping corrupted frame (std=%.1f)", frame.std())
+                        continue
                     with self._lock:
                         self._frame = frame.copy()
+                        self._frame_time = time.monotonic()
                     frames_read += 1
-                    time.sleep(interval)
             finally:
                 proc.terminate()
                 proc.wait()
@@ -127,5 +146,6 @@ class CameraStream:
                     self._proc = None
 
             if not self._stop.is_set():
-                log.info("[camera] reconnecting in 2s...")
-                time.sleep(2)
+                delay = 5 if frames_read == 0 else 2
+                log.info("[camera] reconnecting in %ds...", delay)
+                time.sleep(delay)

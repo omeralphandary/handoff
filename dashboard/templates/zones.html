@@ -1,81 +1,43 @@
 {% extends "base.html" %}
 {% block title %} — Zones{% endblock %}
+{% block page_title %}Zones{% endblock %}
 
 {% block head %}
 <style>
-  /* Zone cards */
-  .zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-bottom: 40px; }
-  .zone-card { background: #161616; border: 1px solid #242424; border-radius: 10px; padding: 22px; }
+  .zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .zone-card { background: #161616; border: 1px solid #242424; border-radius: 10px; padding: 22px; cursor: pointer; text-decoration: none; display: block; transition: border-color 0.15s; }
+  .zone-card:hover { border-color: #333; }
   .zone-card.active { border-color: #22c55e33; }
+  .zone-card.active:hover { border-color: #22c55e66; }
   .zone-name { font-weight: 600; font-size: 16px; color: #f0f0f0; margin-bottom: 8px; }
   .zone-meta { font-size: 13px; color: #555; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .zone-url { font-size: 12px; color: #444; font-family: 'SF Mono', 'Fira Code', monospace;
-              margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+  .zone-url { font-size: 12px; color: #444; font-family: 'SF Mono', 'Fira Code', monospace; margin-bottom: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .zone-actions { display: flex; gap: 8px; align-items: center; }
-  .btn { padding: 7px 15px; border: none; border-radius: 6px; font-size: 13px; font-family: inherit;
-         font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; }
-  .btn-start  { background: #14532d44; color: #4ade80; border: 1px solid #14532d; }
-  .btn-start:hover  { background: #14532d88; }
-  .btn-stop   { background: #7f1d1d44; color: #f87171; border: 1px solid #7f1d1d; }
-  .btn-stop:hover   { background: #7f1d1d88; }
-  .btn-neutral { background: #1e1e1e; color: #888; border: 1px solid #2e2e2e; }
-  .btn-neutral:hover { color: #ccc; border-color: #444; }
-  .btn-delete { background: transparent; color: #444; border: 1px solid #2a2a2a; margin-left: auto; }
-  .btn-delete:hover { border-color: #7f1d1d; color: #f87171; }
 
-  /* Create form */
-  .create-panel { background: #161616; border: 1px solid #242424; border-radius: 10px; padding: 28px; }
-  .create-panel h2 { font-size: 16px; font-weight: 600; color: #f0f0f0; margin-bottom: 22px; letter-spacing: -0.01em; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-group.full { grid-column: 1 / -1; }
-  label { font-size: 13px; color: #666; font-weight: 500; }
-  input, select {
-    background: #111;
-    border: 1px solid #2e2e2e;
-    color: #d4d4d4;
-    padding: 9px 11px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-family: inherit;
-    width: 100%;
+  .add-zone-card {
+    background: #0d0d0d; border: 1px dashed #222; border-radius: 10px;
+    padding: 22px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    min-height: 160px; text-decoration: none; transition: border-color 0.15s;
   }
-  input:focus, select:focus { outline: none; border-color: #3b82f6; }
-  .btn-submit {
-    background: #1d4ed8;
-    color: #fff;
-    padding: 10px 22px;
-    font-size: 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-top: 10px;
-    font-weight: 500;
-    font-family: inherit;
+  .add-zone-card:hover { border-color: #3b82f6; }
+  .add-zone-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    display: flex; align-items: center; justify-content: center;
+    color: #555; font-size: 20px; line-height: 1;
   }
-  .btn-submit:hover { background: #2563eb; }
-
-  .task-checkboxes { display: flex; gap: 18px; align-items: center; padding: 9px 0; flex-wrap: wrap; }
-  .checkbox-label { display: flex; align-items: center; gap: 7px; font-size: 14px; color: #aaa;
-                    cursor: pointer; user-select: none; }
-  .checkbox-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
+  .add-zone-card:hover .add-zone-icon { border-color: #3b82f6; color: #60a5fa; }
+  .add-zone-label { font-size: 14px; color: #555; font-weight: 500; }
+  .add-zone-card:hover .add-zone-label { color: #aaa; }
 </style>
 {% endblock %}
 
-{% block page_title %}Zones{% endblock %}
-{% block page_actions %}
-  <a href="/zones/new" class="btn btn-primary btn-sm">
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    Add zone
-  </a>
-{% endblock %}
-
 {% block content %}
-{% if zones %}
 <div class="zone-grid">
+
   {% for z in zones %}
-  <div class="zone-card {% if z.id in active_ids or z.active %}active{% endif %}">
+  <div class="zone-card {% if z.id in active_ids or z.active %}active{% endif %}" onclick="location.href='/zones/{{ z.id }}'">
     <div class="zone-name">{{ z.name }}</div>
     <div class="zone-meta">
       {% for t in z.task_types %}
@@ -84,65 +46,26 @@
       <span class="badge {% if z.active %}badge-active{% else %}badge-inactive{% endif %}">
         {% if z.active %}active{% else %}inactive{% endif %}
       </span>
-      <span>{{ z.retention_days }}d</span>
-      <span>{{ z.cooldown_seconds }}s cooldown</span>
     </div>
     <div class="zone-url" title="{{ z.camera_url }}">{{ z.camera_url }}</div>
-    <div class="zone-actions">
+    <div class="zone-actions" onclick="event.stopPropagation()">
       {% if z.active %}
       <form method="post" action="/zones/{{ z.id }}/stop">
-        <button type="submit" class="btn btn-stop">Stop</button>
+        <button type="submit" class="btn btn-warn btn-sm">Stop</button>
       </form>
       {% else %}
       <form method="post" action="/zones/{{ z.id }}/start">
-        <button type="submit" class="btn btn-start">Start</button>
+        <button type="submit" class="btn btn-success btn-sm">Start</button>
       </form>
       {% endif %}
-      <a href="/records?zone_id={{ z.id }}" class="btn btn-neutral">Records</a>
-      <form method="post" action="/zones/{{ z.id }}/delete" onsubmit="return confirm('Delete zone {{ z.name }}?')">
-        <button type="submit" class="btn btn-delete">Delete</button>
-      </form>
     </div>
   </div>
   {% endfor %}
-</div>
-{% else %}
-<p class="empty-state">No zones yet. Create one below.</p>
-{% endif %}
 
-<div class="create-panel" id="create">
-  <h2>Add Zone</h2>
-  <form method="post" action="/zones">
-    <div class="form-grid">
-      <div class="form-group">
-        <label for="name">Zone name</label>
-        <input id="name" name="name" type="text" placeholder="Dock A inbound" required>
-      </div>
-      <div class="form-group">
-        <label>Task types</label>
-        <div class="task-checkboxes">
-          {% for t in task_types %}
-          <label class="checkbox-label">
-            <input type="checkbox" name="task_types" value="{{ t }}" {% if t == 'documentation' %}checked{% endif %}>
-            {{ t }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="form-group full">
-        <label for="camera_url">Camera URL (RTSP / ONVIF / file path)</label>
-        <input id="camera_url" name="camera_url" type="text" placeholder="rtsp://192.168.1.100:554/stream1" required>
-      </div>
-      <div class="form-group">
-        <label for="retention_days">Retention (days)</label>
-        <input id="retention_days" name="retention_days" type="number" value="90" min="1" max="3650">
-      </div>
-      <div class="form-group">
-        <label for="cooldown_seconds">Cooldown (seconds)</label>
-        <input id="cooldown_seconds" name="cooldown_seconds" type="number" value="10" min="1" step="0.5">
-      </div>
-    </div>
-    <button type="submit" class="btn-submit">Create Zone</button>
-  </form>
+  <a href="/zones/new" class="add-zone-card">
+    <div class="add-zone-icon">+</div>
+    <span class="add-zone-label">Add zone</span>
+  </a>
+
 </div>
 {% endblock %}

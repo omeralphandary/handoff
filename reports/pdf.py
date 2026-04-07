@@ -20,7 +20,7 @@ def generate_pdf(record: dict) -> Path:
     pdf.add_page()
 
     pdf.set_font("DejaVu", "B", 16)
-    pdf.cell(0, 10, "Handoff — Evidence Report", ln=True)
+    pdf.cell(0, 10, "Oversight — Evidence Report", ln=True)
 
     pdf.set_font("DejaVu", "", 10)
     pdf.cell(0, 6, f"Record ID : {record['id']}", ln=True)

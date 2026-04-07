@@ -12,6 +12,19 @@ from storage.store import BaseStore
 import config
 
 
+def _enc(url: str) -> str:
+    """Encrypt camera URL before writing to DB."""
+    return config.encrypt_str(url)
+
+
+def _dec(url: str) -> str:
+    """Decrypt camera URL after reading from DB. Falls back to raw value on error."""
+    try:
+        return config.decrypt_str(url)
+    except Exception:
+        return url  # already plaintext (pre-encryption rows)
+
+
 CREATE_EVIDENCE_TABLE = """
 CREATE TABLE IF NOT EXISTS evidence (
     id TEXT PRIMARY KEY,
@@ -40,6 +53,7 @@ CREATE TABLE IF NOT EXISTS zones (
     motion_threshold REAL NOT NULL DEFAULT 0.02,
     sequence_interval REAL NOT NULL DEFAULT 0.0,
     trigger_mode TEXT NOT NULL DEFAULT 'motion',
+    trigger_classes TEXT NOT NULL DEFAULT '[]',
     active INTEGER NOT NULL DEFAULT 0
 )
 """
@@ -69,6 +83,12 @@ class LocalStore(BaseStore):
                 await db.execute("ALTER TABLE zones ADD COLUMN sequence_interval REAL NOT NULL DEFAULT 0.0")
             if "trigger_mode" not in cols:
                 await db.execute("ALTER TABLE zones ADD COLUMN trigger_mode TEXT NOT NULL DEFAULT 'motion'")
+            if "trigger_classes" not in cols:
+                await db.execute("ALTER TABLE zones ADD COLUMN trigger_classes TEXT NOT NULL DEFAULT '[]'")
+            if "node_positions" not in cols:
+                await db.execute("ALTER TABLE zones ADD COLUMN node_positions TEXT NOT NULL DEFAULT '{}'")
+            if "graph_json" not in cols:
+                await db.execute("ALTER TABLE zones ADD COLUMN graph_json TEXT")
             await db.commit()
             # Migrate: add capture_id to evidence table
             async with db.execute("PRAGMA table_info(evidence)") as cur:
@@ -84,12 +104,14 @@ class LocalStore(BaseStore):
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """INSERT INTO zones (id, name, camera_url, polygon, task_types,
-                   trigger_mode, retention_days, cooldown_seconds, motion_threshold, sequence_interval, active)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,0)""",
+                   trigger_mode, trigger_classes, retention_days, cooldown_seconds,
+                   motion_threshold, sequence_interval, active)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,0)""",
                 (
-                    zone.id, zone.name, zone.camera_url,
+                    zone.id, zone.name, _enc(zone.camera_url),
                     json.dumps(zone.polygon), json.dumps(zone.task_types),
-                    zone.trigger_mode, zone.retention_days, zone.cooldown_seconds,
+                    zone.trigger_mode, json.dumps(zone.trigger_classes),
+                    zone.retention_days, zone.cooldown_seconds,
                     zone.motion_threshold, zone.sequence_interval,
                 ),
             )
@@ -124,13 +146,18 @@ class LocalStore(BaseStore):
                 return [_zone_row_to_dict(r) for r in rows]
 
     async def update_zone(self, zone_id: str, **fields) -> bool:
-        allowed = {"name", "camera_url", "task_types", "trigger_mode", "retention_days", "cooldown_seconds", "motion_threshold", "sequence_interval"}
+        allowed = {"name", "camera_url", "polygon", "task_types", "trigger_mode", "trigger_classes", "retention_days", "cooldown_seconds", "motion_threshold", "sequence_interval", "node_positions", "graph_json"}
         sets, params = [], []
         for k, v in fields.items():
             if k not in allowed:
                 continue
             sets.append(f"{k}=?")
-            params.append(json.dumps(v) if k == "task_types" else v)
+            if k in ("task_types", "polygon", "trigger_classes", "node_positions"):
+                params.append(json.dumps(v))
+            elif k == "camera_url":
+                params.append(_enc(v))
+            else:
+                params.append(v)
         if not sets:
             return False
         params.append(zone_id)
@@ -159,6 +186,9 @@ class LocalStore(BaseStore):
         ts = datetime.utcnow().isoformat()
         image_path = self.images_dir / f"{record_id}.jpg"
         cv2.imwrite(str(image_path), frame)
+        triggered_by = getattr(zone, "_triggered_by", [])
+        if triggered_by:
+            result = {**result, "triggered_by": triggered_by}
 
         # Tasks may set explicit flagged; fall back to type-specific heuristics
         if "flagged" in result:
@@ -255,7 +285,9 @@ class LocalStore(BaseStore):
                 zone_id, zone_name,
                 GROUP_CONCAT(task_type) as task_types_str,
                 MAX(flagged) as flagged,
-                MIN(image_path) as image_path
+                MIN(image_path) as image_path,
+                MAX(CASE WHEN task_type='documentation'
+                    THEN json_extract(result, '$.condition_score') END) as condition_score
             FROM evidence
             {where}
             GROUP BY capture_id
@@ -349,5 +381,8 @@ def _zone_row_to_dict(row: aiosqlite.Row) -> dict:
     d = dict(row)
     d["polygon"] = json.loads(d["polygon"])
     d["task_types"] = json.loads(d.get("task_types") or '["documentation"]')
+    d["trigger_classes"] = json.loads(d.get("trigger_classes") or "[]")
+    d["node_positions"] = json.loads(d.get("node_positions") or "{}")
     d["active"] = bool(d["active"])
+    d["camera_url"] = _dec(d["camera_url"])
     return d

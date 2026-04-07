@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <title>Handoff{% block title %}{% endblock %}</title>
+  <title>Oversight{% block title %}{% endblock %}</title>
   {% block meta %}{% endblock %}
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -115,6 +115,24 @@
       flex-shrink: 0;
     }
 
+    /* ── Demo watermark ──────────────────────────────── */
+    .demo-watermark {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #f59e0b88;
+      border: 1px solid #f59e0b33;
+      border-radius: 4px;
+      padding: 3px 8px;
+      pointer-events: none;
+      z-index: 9999;
+      user-select: none;
+    }
+
     /* ── Main area ────────────────────────────────────── */
     .main-wrap {
       flex: 1;
@@ -140,6 +158,21 @@
       letter-spacing: -0.02em;
     }
     .topbar-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+
+    .infer-indicator {
+      display: none; align-items: center; gap: 8px;
+      font-size: 12px; color: #555;
+    }
+    .infer-indicator.active { display: flex; }
+    .infer-indicator-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid #2a2a2a;
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: infer-spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes infer-spin { to { transform: rotate(360deg); } }
 
     .main-content {
       flex: 1;
@@ -265,7 +298,7 @@
           <rect x="8" y="5" width="5" height="8" rx="1.2" fill="white"/>
         </svg>
       </span>
-      <span class="brand-name">Handoff</span>
+      <span class="brand-name">Oversight</span>
     </div>
 
     <nav class="sidebar-nav">
@@ -309,12 +342,22 @@
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.9 2.9l1 1M11.1 11.1l1 1M11.1 2.9l-1 1M2.9 11.1l1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         Settings
       </a>
+      <form method="post" action="/logout" style="margin: 0;">
+        <button type="submit" class="nav-item" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M5 7.5h8M10 5l3 2.5L10 10M6 3H3a1 1 0 00-1 1v7a1 1 0 001 1h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Sign out
+        </button>
+      </form>
     </div>
   </aside>
 
   <div class="main-wrap">
     <div class="page-topbar">
       <h1>{% block page_title %}{% endblock %}</h1>
+      <div id="infer-indicator" class="infer-indicator">
+        <div class="infer-indicator-spinner"></div>
+        <span id="infer-indicator-label">Analyzing…</span>
+      </div>
       <div class="topbar-actions">{% block page_actions %}{% endblock %}</div>
     </div>
     <div class="main-content">
@@ -322,5 +365,6 @@
     </div>
   </div>
 {% block scripts %}{% endblock %}
+<div class="demo-watermark">Demo Auth</div>
 </body>
 </html>

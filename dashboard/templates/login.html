@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Oversight — Sign in</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #d4d4d4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .login-card {
+      width: 360px;
+      background: #161616;
+      border: 1px solid #222;
+      border-radius: 14px;
+      padding: 40px 36px 36px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .brand-mark {
+      width: 44px; height: 44px;
+      background: #3b82f6;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+    .brand-sub {
+      font-size: 12px;
+      color: #444;
+      margin-top: 2px;
+    }
+    .demo-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #f59e0b;
+      background: #f59e0b18;
+      border: 1px solid #f59e0b44;
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 13px;
+      color: #666;
+      font-weight: 500;
+    }
+    input {
+      background: #111;
+      border: 1px solid #2e2e2e;
+      color: #d4d4d4;
+      padding: 10px 12px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-family: inherit;
+      width: 100%;
+    }
+    input:focus { outline: none; border-color: #3b82f6; }
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 7px;
+      background: #1d4ed8;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      margin-top: 8px;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #2563eb; }
+    .error {
+      background: #7f1d1d22;
+      border: 1px solid #7f1d1d;
+      color: #f87171;
+      font-size: 13px;
+      border-radius: 6px;
+      padding: 9px 12px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg width="22" height="22" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="1" width="5.5" height="12" rx="1.2" fill="white"/>
+          <circle cx="3.75" cy="4.2" r="1.8" fill="#3b82f6"/>
+          <circle cx="3.75" cy="4.2" r="0.7" fill="white"/>
+          <rect x="8" y="5" width="5" height="8" rx="1.2" fill="white"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">Oversight</div>
+      </div>
+    </div>
+
+    <div class="demo-badge">Demo Auth</div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn">Sign in</button>
+    </form>
+  </div>
+</body>
+</html>

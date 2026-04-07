@@ -1,5 +1,5 @@
 """
-Handoff -- mixed dataset benchmark.
+Oversight -- mixed dataset benchmark.
 
 Samples images from all three datasets, runs the full pipeline on each,
 then writes a CSV + PDF summary with miss/FP examples.
@@ -419,7 +419,7 @@ def write_pdf(results: list[Result], csv_path: Path, pdf_path: Path, cfg: dict) 
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 20)
     pdf.set_text_color(20, 20, 20)
-    pdf.cell(W, 13, "Handoff -- Benchmark Report",
+    pdf.cell(W, 13, "Oversight -- Benchmark Report",
              new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(130, 130, 130)
@@ -529,7 +529,7 @@ async def main(n: int, backend: str, no_vlm: bool, concurrency: int, seed: int) 
     random.seed(seed)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
-    print(f"\nHandoff Benchmark  |  n={n}  backend={backend}  no-vlm={no_vlm}")
+    print(f"\nOversight Benchmark  |  n={n}  backend={backend}  no-vlm={no_vlm}")
     print("=" * 60)
 
     extract_dir = config.DATA_DIR / "test_datasets" / "_extracted"

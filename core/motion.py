@@ -25,7 +25,7 @@ class MotionTrigger:
         self._last_trigger: float = 0.0
 
     def check(self, frame: np.ndarray) -> bool:
-        """Returns True if motion detected and cooldown has elapsed."""
+        """Returns True if motion detected and cooldown has elapsed. Stamps cooldown on match."""
         if time.time() - self._last_trigger < self.cooldown_seconds:
             return False
         mask = self._subtractor.apply(frame)
@@ -34,3 +34,15 @@ class MotionTrigger:
             self._last_trigger = time.time()
             return True
         return False
+
+    def has_motion(self, frame: np.ndarray) -> bool:
+        """Returns True if motion detected, regardless of cooldown. Does NOT stamp cooldown."""
+        mask = self._subtractor.apply(frame)
+        return np.count_nonzero(mask) / mask.size >= self.threshold_pct
+
+    def stamp_cooldown(self) -> None:
+        """Manually stamp the cooldown — call after a confirmed class match."""
+        self._last_trigger = time.time()
+
+    def in_cooldown(self) -> bool:
+        return time.time() - self._last_trigger < self.cooldown_seconds

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vision Platform — Concept</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0a0a0a;
+  color: #d4d4d4;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 48px;
+  background: #111; border-bottom: 1px solid #1e1e1e;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 100;
+}
+.topbar-brand {
+  display: flex; align-items: center; gap: 10px;
+}
+.brand-mark {
+  width: 28px; height: 28px; background: #3b82f6;
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+}
+.brand-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.03em; }
+.brand-tag { font-size: 11px; color: #555; margin-left: 4px; }
+.topbar-center { display: flex; gap: 6px; align-items: center; }
+.tab {
+  padding: 4px 14px; border-radius: 5px; font-size: 12px; font-weight: 500;
+  color: #555; cursor: pointer; transition: all 0.15s;
+}
+.tab:hover { color: #aaa; background: #1a1a1a; }
+.tab.active { background: #1e1e1e; color: #e5e5e5; }
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.btn-top {
+  padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500;
+  font-family: inherit; cursor: pointer; border: none; transition: all 0.15s;
+}
+.btn-top.secondary { background: #1e1e1e; color: #888; border: 1px solid #2a2a2a; }
+.btn-top.secondary:hover { color: #ddd; }
+.btn-top.primary { background: #1d4ed8; color: #fff; }
+.btn-top.primary:hover { background: #2563eb; }
+.zoom-display { font-size: 11px; color: #444; font-family: monospace; min-width: 40px; text-align: center; }
+
+/* ── Left sidebar ── */
+.sidebar {
+  position: fixed; top: 48px; left: 0; bottom: 0; width: 200px;
+  background: #111; border-right: 1px solid #1e1e1e;
+  overflow-y: auto; z-index: 90; padding-bottom: 20px;
+}
+.sidebar-section { padding: 12px 12px 4px; }
+.sidebar-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #333; margin-bottom: 6px;
+}
+.palette-node {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px; margin-bottom: 2px;
+  cursor: grab; border: 1px solid transparent;
+  transition: all 0.12s; font-size: 12px; color: #888;
+}
+.palette-node:hover { background: #1a1a1a; border-color: #2a2a2a; color: #ccc; }
+.palette-node:active { cursor: grabbing; }
+.palette-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.palette-node .palette-sub { font-size: 10px; color: #444; margin-left: auto; }
+
+/* ── Canvas ── */
+#canvas-wrap {
+  position: fixed; top: 48px; left: 200px; right: 280px; bottom: 0;
+  overflow: hidden; background: #0d0d0d; cursor: default;
+}
+.canvas-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, #1e1e1e 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+#canvas {
+  position: absolute; width: 4000px; height: 4000px;
+  transform-origin: 0 0;
+}
+#svg-layer {
+  position: absolute; top: 0; left: 0; width: 4000px; height: 4000px;
+  pointer-events: none;
+}
+
+/* ── Nodes ── */
+.node {
+  position: absolute; width: 180px;
+  background: #161616; border: 1px solid #262626;
+  border-radius: 10px; cursor: move;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.node:hover { border-color: #3a3a3a; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+.node.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f620, 0 4px 20px rgba(0,0,0,0.6); }
+.node-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px 8px; border-bottom: 1px solid #1e1e1e;
+  border-radius: 9px 9px 0 0;
+}
+.node-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 11px;
+}
+.node-title { font-size: 12px; font-weight: 600; color: #e5e5e5; flex: 1; min-width: 0; }
+.node-type-tag {
+  font-size: 9px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 2px 5px; border-radius: 3px;
+}
+.node-body { padding: 8px 10px 10px; }
+.node-prop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.node-prop-label { font-size: 10px; color: #555; }
+.node-prop-value { font-size: 10px; color: #888; font-family: monospace; }
+.node-prop-value.active { color: #4ade80; }
+.node-prop-value.warn { color: #f59e0b; }
+.node-prop-value.highlight { color: #60a5fa; }
+
+/* Port dots */
+.port {
+  position: absolute; width: 10px; height: 10px; border-radius: 50%;
+  background: #2a2a2a; border: 2px solid #3a3a3a;
+  cursor: crosshair; transition: all 0.12s; z-index: 10;
+}
+.port:hover { background: #3b82f6; border-color: #60a5fa; transform: scale(1.3); }
+.port.output { right: -6px; }
+.port.input  { left: -6px; }
+.port.output.top    { top: 18px; right: -6px; }
+.port.output.bottom { bottom: 18px; right: -6px; }
+
+/* Node type colours */
+.type-source   .node-icon { background: #1e3a5f; }
+.type-source   .node-type-tag { background: #1e3a5f; color: #60a5fa; }
+.type-source   .node-header { border-bottom-color: #1e3a5f44; }
+.type-filter   .node-icon { background: #3b2a1a; }
+.type-filter   .node-type-tag { background: #3b2a1a; color: #f59e0b; }
+.type-filter   .node-header { border-bottom-color: #3b2a1a44; }
+.type-inference .node-icon { background: #2d1a4a; }
+.type-inference .node-type-tag { background: #2d1a4a; color: #c084fc; }
+.type-inference .node-header { border-bottom-color: #2d1a4a44; }
+.type-sink     .node-icon { background: #14291a; }
+.type-sink     .node-type-tag { background: #14291a; color: #4ade80; }
+.type-sink     .node-header { border-bottom-color: #14291a44; }
+
+/* ── Right inspector ── */
+.inspector {
+  position: fixed; top: 48px; right: 0; bottom: 0; width: 280px;
+  background: #111; border-left: 1px solid #1e1e1e;
+  z-index: 90; overflow-y: auto;
+}
+.inspector-header {
+  padding: 16px 16px 12px; border-bottom: 1px solid #1a1a1a;
+}
+.inspector-title { font-size: 13px; font-weight: 600; color: #e5e5e5; }
+.inspector-sub { font-size: 11px; color: #444; margin-top: 2px; }
+.inspector-section { padding: 12px 16px; border-bottom: 1px solid #1a1a1a; }
+.inspector-section-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #333; margin-bottom: 10px;
+}
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; color: #555; margin-bottom: 4px; }
+.field input, .field select {
+  width: 100%; background: #0d0d0d; border: 1px solid #222;
+  color: #ccc; padding: 6px 8px; border-radius: 5px;
+  font-size: 12px; font-family: inherit;
+}
+.field input:focus, .field select:focus { outline: none; border-color: #3b82f6; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag {
+  padding: 3px 8px; border-radius: 4px; font-size: 11px;
+  background: #2d1a4a; color: #c084fc; border: 1px solid #3d2a5a;
+}
+.status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 5px #22c55e88; }
+.status-text { font-size: 12px; color: #4ade80; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat-box { background: #0d0d0d; border: 1px solid #1e1e1e; border-radius: 6px; padding: 8px 10px; }
+.stat-box .val { font-size: 18px; font-weight: 600; color: #e5e5e5; }
+.stat-box .lbl { font-size: 10px; color: #444; margin-top: 1px; }
+.inspector-empty {
+  padding: 40px 20px; text-align: center; color: #333; font-size: 13px;
+}
+
+/* ── Mini map ── */
+.minimap {
+  position: fixed; bottom: 20px; right: 296px;
+  width: 140px; height: 90px;
+  background: #111; border: 1px solid #1e1e1e; border-radius: 8px;
+  overflow: hidden; z-index: 95;
+}
+.minimap-canvas { position: absolute; inset: 0; }
+.minimap-label { position: absolute; bottom: 4px; right: 6px; font-size: 9px; color: #333; }
+.minimap-viewport {
+  position: absolute; border: 1px solid #3b82f640;
+  background: #3b82f608; pointer-events: none; border-radius: 2px;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #161616; border: 1px solid #222; border-radius: 10px;
+  display: flex; gap: 2px; padding: 4px; z-index: 95;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.tool-btn {
+  width: 34px; height: 34px; border-radius: 6px; border: none;
+  background: transparent; color: #555; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; font-size: 14px;
+}
+.tool-btn:hover { background: #1e1e1e; color: #aaa; }
+.tool-btn.active { background: #1e3a5f; color: #60a5fa; }
+.tool-divider { width: 1px; background: #222; margin: 4px 2px; }
+
+/* ── Floating badge ── */
+.concept-badge {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  background: #1d4ed822; border: 1px solid #3b82f640; border-radius: 20px;
+  padding: 4px 14px; font-size: 11px; color: #60a5fa;
+  pointer-events: none; z-index: 80;
+}
+
+/* SVG edges */
+.edge { fill: none; stroke-width: 1.5; }
+.edge.default { stroke: #2a2a2a; }
+.edge.blue { stroke: #3b82f640; }
+.edge.purple { stroke: #8b5cf640; }
+.edge.green { stroke: #22c55e40; }
+.edge.amber { stroke: #f59e0b40; }
+.edge-label {
+  font-size: 9px; fill: #333; font-family: 'Inter', sans-serif;
+}
+
+/* ── Animations ── */
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.live-dot { animation: pulse-dot 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-mark">
+      <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
+        <rect x="1" y="1" width="5" height="12" rx="1" fill="white"/>
+        <circle cx="3.5" cy="4" r="1.6" fill="#3b82f6"/>
+        <circle cx="3.5" cy="4" r="0.6" fill="white"/>
+        <rect x="8" y="4.5" width="5" height="8" rx="1" fill="white"/>
+      </svg>
+    </div>
+    <span class="brand-name">VisionFlow</span>
+    <span class="brand-tag">concept</span>
+  </div>
+  <div class="topbar-center">
+    <div class="tab active">Canvas</div>
+    <div class="tab">Deployments</div>
+    <div class="tab">Records</div>
+    <div class="tab">Settings</div>
+  </div>
+  <div class="topbar-right">
+    <span class="zoom-display" id="zoom-label">100%</span>
+    <button class="btn-top secondary" onclick="resetView()">Reset view</button>
+    <button class="btn-top primary">Deploy →</button>
+  </div>
+</div>
+
+<!-- Left sidebar -->
+<div class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Sources</div>
+    <div class="palette-node" draggable="true" data-type="source">
+      <div class="palette-dot" style="background:#3b82f6"></div>
+      IP Camera
+      <span class="palette-sub">RTSP</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="source">
+      <div class="palette-dot" style="background:#60a5fa"></div>
+      Video File
+      <span class="palette-sub">MP4</span>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Filters</div>
+    <div class="palette-node" draggable="true" data-type="filter">
+      <div class="palette-dot" style="background:#f59e0b"></div>
+      Motion Gate
+    </div>
+    <div class="palette-node" draggable="true" data-type="filter">
+      <div class="palette-dot" style="background:#f59e0b"></div>
+      Class Gate
+      <span class="palette-sub">YOLO</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="filter">
+      <div class="palette-dot" style="background:#f59e0b"></div>
+      Time Interval
+    </div>
+    <div class="palette-node" draggable="true" data-type="filter">
+      <div class="palette-dot" style="background:#f59e0b"></div>
+      Crop / Zone
+    </div>
+    <div class="palette-node" draggable="true" data-type="filter">
+      <div class="palette-dot" style="background:#fbbf24"></div>
+      Cooldown
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Inference</div>
+    <div class="palette-node" draggable="true" data-type="inference">
+      <div class="palette-dot" style="background:#8b5cf6"></div>
+      Claude Vision
+      <span class="palette-sub">cloud</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="inference">
+      <div class="palette-dot" style="background:#8b5cf6"></div>
+      Gemini Vision
+      <span class="palette-sub">cloud</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="inference">
+      <div class="palette-dot" style="background:#a78bfa"></div>
+      Local VLM
+      <span class="palette-sub">Ollama</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="inference">
+      <div class="palette-dot" style="background:#a78bfa"></div>
+      OCR
+    </div>
+    <div class="palette-node" draggable="true" data-type="inference">
+      <div class="palette-dot" style="background:#a78bfa"></div>
+      Classification
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Outputs</div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#22c55e"></div>
+      Local Database
+    </div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#22c55e"></div>
+      Webhook
+      <span class="palette-sub">HTTP</span>
+    </div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#22c55e"></div>
+      Slack Alert
+    </div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#22c55e"></div>
+      FTP Upload
+    </div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#22c55e"></div>
+      PDF Report
+    </div>
+    <div class="palette-node" draggable="true" data-type="sink">
+      <div class="palette-dot" style="background:#4ade80"></div>
+      S3 / Cloud
+    </div>
+  </div>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-wrap">
+  <div class="canvas-grid"></div>
+  <div id="canvas">
+    <svg id="svg-layer"></svg>
+    <!-- nodes injected by JS -->
+  </div>
+</div>
+
+<!-- Inspector -->
+<div class="inspector" id="inspector">
+  <div id="inspector-content">
+    <div class="inspector-empty">Click a node to inspect and configure it.</div>
+  </div>
+</div>
+
+<!-- Mini map -->
+<div class="minimap" id="minimap">
+  <canvas class="minimap-canvas" id="minimap-canvas" width="140" height="90"></canvas>
+  <div class="minimap-viewport" id="minimap-vp"></div>
+  <span class="minimap-label">overview</span>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <button class="tool-btn active" title="Select" onclick="setTool('select')">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="tool-btn" title="Pan" onclick="setTool('pan')">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" title="Zoom in" onclick="zoom(0.15)">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 6h3M6 4.5v3M9.5 9.5l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  </button>
+  <button class="tool-btn" title="Zoom out" onclick="zoom(-0.15)">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 6h3M9.5 9.5l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  </button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" title="Fit to screen" onclick="fitView()">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 4V1h3M10 1h3v3M13 10v3h-3M4 13H1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<div class="concept-badge">⚡ Interactive concept — drag nodes, click to inspect</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let scale = 1, panX = 0, panY = 0;
+let dragging = null, dragOffX = 0, dragOffY = 0;
+let isPanning = false, panStartX = 0, panStartY = 0, panOriginX = 0, panOriginY = 0;
+let selectedNode = null;
+let currentTool = 'select';
+
+// ── Node definitions ───────────────────────────────────────────────
+const nodes = [
+  // Flow 1: Dock inbound
+  {
+    id: 'cam1', type: 'source', label: 'CAM 1', sub: 'Dock — Inbound',
+    x: 80, y: 120,
+    icon: '📷',
+    props: [
+      {l:'URL', v:'rtsp://10.0.0.58:554/main', cl:'highlight'},
+      {l:'Resolution', v:'1920×1080'},
+      {l:'FPS limit', v:'10 fps'},
+      {l:'Status', v:'● Live', cl:'active'},
+    ],
+    inspector: 'cam1'
+  },
+  {
+    id: 'motion1', type: 'filter', label: 'Motion Gate', sub: 'Background subtraction',
+    x: 330, y: 80,
+    icon: '〰',
+    props: [
+      {l:'Sensitivity', v:'0.02 (2%)'},
+      {l:'Cooldown', v:'10s'},
+      {l:'Algorithm', v:'MOG2'},
+    ],
+    inspector: 'motion'
+  },
+  {
+    id: 'yolo1', type: 'filter', label: 'Class Gate', sub: 'YOLO v8n — local',
+    x: 330, y: 220,
+    icon: '🔍',
+    props: [
+      {l:'Model', v:'yolov8n.pt'},
+      {l:'Classes', v:'person, truck'},
+      {l:'Confidence', v:'0.4'},
+      {l:'Device', v:'CUDA (RTX 4050)', cl:'active'},
+    ],
+    inspector: 'yolo'
+  },
+  {
+    id: 'vlm1', type: 'inference', label: 'Claude Vision', sub: 'claude-sonnet-4-6',
+    x: 580, y: 120,
+    icon: '✦',
+    props: [
+      {l:'Model', v:'claude-sonnet-4-6'},
+      {l:'Task', v:'Documentation'},
+      {l:'Avg latency', v:'3.2s'},
+      {l:'Cost / call', v:'~$0.004'},
+    ],
+    inspector: 'vlm'
+  },
+  {
+    id: 'db1', type: 'sink', label: 'Local Database', sub: 'SQLite + images',
+    x: 840, y: 60,
+    icon: '🗄',
+    props: [
+      {l:'Path', v:'storage/oversight.db'},
+      {l:'Records', v:'1,247'},
+      {l:'Retention', v:'90 days'},
+    ],
+    inspector: 'db'
+  },
+  {
+    id: 'webhook1', type: 'sink', label: 'Slack Alert', sub: 'Flagged events only',
+    x: 840, y: 200,
+    icon: '🔔',
+    props: [
+      {l:'Trigger', v:'flagged = true'},
+      {l:'Channel', v:'#dock-alerts'},
+      {l:'Sent today', v:'3'},
+    ],
+    inspector: 'slack'
+  },
+
+  // Flow 2: Yard gate
+  {
+    id: 'cam2', type: 'source', label: 'CAM 2', sub: 'Yard — Entry Gate',
+    x: 80, y: 420,
+    icon: '📷',
+    props: [
+      {l:'URL', v:'rtsp://10.0.0.61:554/main', cl:'highlight'},
+      {l:'Resolution', v:'1920×1080'},
+      {l:'FPS limit', v:'5 fps'},
+      {l:'Status', v:'● Live', cl:'active'},
+    ],
+    inspector: 'cam2'
+  },
+  {
+    id: 'interval1', type: 'filter', label: 'Time Interval', sub: 'Periodic capture',
+    x: 330, y: 420,
+    icon: '⏱',
+    props: [
+      {l:'Interval', v:'Every 30s'},
+      {l:'Active hours', v:'06:00–22:00'},
+      {l:'Next capture', v:'in 12s', cl:'warn'},
+    ],
+    inspector: 'interval'
+  },
+  {
+    id: 'vlm2', type: 'inference', label: 'Local VLM', sub: 'llava:7b via Ollama',
+    x: 580, y: 360,
+    icon: '🤖',
+    props: [
+      {l:'Model', v:'llava:7b'},
+      {l:'Task', v:'OCR + Plate read'},
+      {l:'Avg latency', v:'4.8s'},
+      {l:'Device', v:'RTX 4050', cl:'active'},
+    ],
+    inspector: 'local_vlm'
+  },
+  {
+    id: 'pdf1', type: 'sink', label: 'PDF Report', sub: 'Auto-generated',
+    x: 840, y: 360,
+    icon: '📄',
+    props: [
+      {l:'Template', v:'Vehicle entry log'},
+      {l:'Generated', v:'48 today'},
+      {l:'Retention', v:'30 days'},
+    ],
+    inspector: 'pdf'
+  },
+  {
+    id: 'ftp1', type: 'sink', label: 'FTP Upload', sub: 'Remote archive',
+    x: 840, y: 480,
+    icon: '📤',
+    props: [
+      {l:'Host', v:'ftp.company.local'},
+      {l:'Path', v:'/yard/captures/'},
+      {l:'Last sync', v:'2m ago', cl:'active'},
+    ],
+    inspector: 'ftp'
+  },
+];
+
+// ── Edges ──────────────────────────────────────────────────────────
+const edges = [
+  {from:'cam1',   to:'motion1', color:'blue',   label:'frames @ 10fps'},
+  {from:'cam1',   to:'yolo1',   color:'blue',   label:''},
+  {from:'motion1',to:'vlm1',    color:'amber',  label:'motion detected'},
+  {from:'yolo1',  to:'vlm1',    color:'amber',  label:'class matched'},
+  {from:'vlm1',   to:'db1',     color:'purple', label:'result JSON'},
+  {from:'vlm1',   to:'webhook1',color:'purple', label:'if flagged'},
+  {from:'cam2',   to:'interval1',color:'blue',  label:'frames @ 5fps'},
+  {from:'interval1',to:'vlm2',  color:'amber',  label:'every 30s'},
+  {from:'vlm2',   to:'pdf1',    color:'purple', label:'structured data'},
+  {from:'vlm2',   to:'ftp1',    color:'purple', label:'image + result'},
+];
+
+// ── Inspector content per node ─────────────────────────────────────
+const inspectorContent = {
+  cam1: `
+    <div class="inspector-header">
+      <div class="inspector-title">CAM 1 — Dock Inbound</div>
+      <div class="inspector-sub">Source · IP Camera</div>
+    </div>
+    <div class="inspector-section">
+      <div class="status-row"><div class="status-dot live-dot"></div><span class="status-text">Live · 1920×1080 · 10fps</span></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">1,247</div><div class="lbl">total captures</div></div>
+        <div class="stat-box"><div class="val">23</div><div class="lbl">today</div></div>
+        <div class="stat-box"><div class="val">4</div><div class="lbl">flagged</div></div>
+        <div class="stat-box"><div class="val">98%</div><div class="lbl">uptime</div></div>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Configuration</div>
+      <div class="field"><label>Camera URL</label><input value="rtsp://admin:●●●●@10.0.0.58:554/h264Preview_01_main"></div>
+      <div class="field"><label>FPS limit</label><input value="10"></div>
+      <div class="field"><label>Max resolution</label>
+        <select><option selected>1920×1080</option><option>3840×2160 (4K)</option><option>1280×720</option></select>
+      </div>
+    </div>`,
+
+  motion: `
+    <div class="inspector-header">
+      <div class="inspector-title">Motion Gate</div>
+      <div class="inspector-sub">Filter · Background subtraction (MOG2)</div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Configuration</div>
+      <div class="field"><label>Sensitivity (% of frame)</label><input type="range" min="0.001" max="0.1" step="0.001" value="0.02" style="padding:0;border:none;background:transparent;accent-color:#3b82f6"></div>
+      <div class="field"><label>Cooldown (seconds)</label><input value="10"></div>
+      <div class="field"><label>Algorithm</label>
+        <select><option selected>MOG2</option><option>KNN</option></select>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Stats (last hour)</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">142</div><div class="lbl">triggers</div></div>
+        <div class="stat-box"><div class="val">23</div><div class="lbl">passed gate</div></div>
+      </div>
+    </div>`,
+
+  yolo: `
+    <div class="inspector-header">
+      <div class="inspector-title">Class Gate</div>
+      <div class="inspector-sub">Filter · YOLO v8n — runs locally</div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Target classes</div>
+      <div class="tag-row">
+        <span class="tag">person</span>
+        <span class="tag">truck</span>
+        <span class="tag" style="background:#3b2a1a;color:#f59e0b;border-color:#4b3a2a">+ add class</span>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Configuration</div>
+      <div class="field"><label>Model</label>
+        <select><option selected>yolov8n (fast, 6MB)</option><option>yolov8s (balanced)</option><option>yolov8m (accurate)</option></select>
+      </div>
+      <div class="field"><label>Confidence threshold</label><input value="0.40"></div>
+      <div class="field"><label>Inference device</label>
+        <select><option selected>CUDA (RTX 4050)</option><option>CPU</option></select>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Stats (last hour)</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">23</div><div class="lbl">checked</div></div>
+        <div class="stat-box"><div class="val">8</div><div class="lbl">matched</div></div>
+        <div class="stat-box"><div class="val">48ms</div><div class="lbl">avg latency</div></div>
+        <div class="stat-box"><div class="val">15</div><div class="lbl">rejected</div></div>
+      </div>
+    </div>`,
+
+  vlm: `
+    <div class="inspector-header">
+      <div class="inspector-title">Claude Vision</div>
+      <div class="inspector-sub">Inference · Anthropic API</div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Task prompt</div>
+      <div class="field"><label>Task type</label>
+        <select><option selected>Documentation</option><option>OCR</option><option>Inspection</option><option>Classification</option><option>Custom prompt</option></select>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Model</div>
+      <div class="field"><label>Model</label>
+        <select><option selected>claude-sonnet-4-6</option><option>claude-opus-4-6</option><option>claude-haiku-4-5</option></select>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Stats (today)</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">8</div><div class="lbl">calls</div></div>
+        <div class="stat-box"><div class="val">3.2s</div><div class="lbl">avg latency</div></div>
+        <div class="stat-box"><div class="val">$0.03</div><div class="lbl">cost today</div></div>
+        <div class="stat-box"><div class="val">2</div><div class="lbl">flagged</div></div>
+      </div>
+    </div>`,
+
+  db: `
+    <div class="inspector-header">
+      <div class="inspector-title">Local Database</div>
+      <div class="inspector-sub">Sink · SQLite + filesystem images</div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Configuration</div>
+      <div class="field"><label>Database path</label><input value="storage/oversight.db"></div>
+      <div class="field"><label>Image storage</label><input value="storage/images/"></div>
+      <div class="field"><label>Retention (days)</label><input value="90"></div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Storage stats</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">1,247</div><div class="lbl">records</div></div>
+        <div class="stat-box"><div class="val">2.3 GB</div><div class="lbl">disk used</div></div>
+      </div>
+    </div>`,
+
+  slack: `
+    <div class="inspector-header">
+      <div class="inspector-title">Slack Alert</div>
+      <div class="inspector-sub">Sink · Webhook notification</div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-section-label">Configuration</div>
+      <div class="field"><label>Webhook URL</label><input value="https://hooks.slack.com/●●●●●●●●●●"></div>
+      <div class="field"><label>Channel</label><input value="#dock-alerts"></div>
+      <div class="field"><label>Trigger condition</label>
+        <select><option selected>flagged = true</option><option>always</option><option>condition_score &lt; 3</option></select>
+      </div>
+    </div>`,
+
+  default: `<div class="inspector-empty">Click a node to inspect and configure it.</div>`
+};
+
+// ── Render ─────────────────────────────────────────────────────────
+function getNodeEl(id) { return document.getElementById('node-' + id); }
+
+function nodeCenter(id) {
+  const n = nodes.find(n => n.id === id);
+  if (!n) return {x:0, y:0};
+  return { x: n.x + 90, y: n.y + 40 };
+}
+
+function renderEdges() {
+  const svg = document.getElementById('svg-layer');
+  svg.innerHTML = '';
+
+  // Definitions for glow
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
+  filter.setAttribute('id','glow');
+  filter.innerHTML = '<feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>';
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+
+  const colorMap = {
+    blue: '#3b82f6', amber: '#f59e0b', purple: '#8b5cf6', green: '#22c55e'
+  };
+
+  edges.forEach(e => {
+    const from = nodes.find(n => n.id === e.from);
+    const to   = nodes.find(n => n.id === e.to);
+    if (!from || !to) return;
+
+    const x1 = from.x + 180, y1 = from.y + 38;
+    const x2 = to.x,          y2 = to.y + 38;
+    const cx = (x1 + x2) / 2;
+
+    const col = colorMap[e.color] || '#3a3a3a';
+
+    // Glow path (thick, faded)
+    const glow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    glow.setAttribute('d', `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`);
+    glow.setAttribute('fill', 'none');
+    glow.setAttribute('stroke', col);
+    glow.setAttribute('stroke-width', '6');
+    glow.setAttribute('stroke-opacity', '0.06');
+    svg.appendChild(glow);
+
+    // Main path
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', col);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-opacity', '0.45');
+    path.setAttribute('stroke-dasharray', e.color === 'blue' ? 'none' : 'none');
+    svg.appendChild(path);
+
+    // Arrow head
+    const arr = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    arr.setAttribute('points', `${x2},${y2} ${x2-7},${y2-4} ${x2-7},${y2+4}`);
+    arr.setAttribute('fill', col);
+    arr.setAttribute('fill-opacity', '0.5');
+    svg.appendChild(arr);
+
+    // Label
+    if (e.label) {
+      const midX = (x1*0.25 + x2*0.75);
+      const midY = (y1 + y2) / 2 - 8;
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x', midX);
+      txt.setAttribute('y', midY);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('class', 'edge-label');
+      txt.textContent = e.label;
+      svg.appendChild(txt);
+    }
+  });
+}
+
+function renderNodes() {
+  const canvas = document.getElementById('canvas');
+  nodes.forEach(n => {
+    if (document.getElementById('node-' + n.id)) return;
+    const el = document.createElement('div');
+    el.id = 'node-' + n.id;
+    el.className = `node type-${n.type}`;
+    el.style.left = n.x + 'px';
+    el.style.top  = n.y + 'px';
+
+    const typeLabel = {source:'Source', filter:'Filter', inference:'Inference', sink:'Output'}[n.type] || n.type;
+
+    el.innerHTML = `
+      <div class="node-header">
+        <div class="node-icon">${n.icon}</div>
+        <span class="node-title">${n.label}</span>
+        <span class="node-type-tag">${typeLabel}</span>
+      </div>
+      <div class="node-body">
+        ${n.props.map(p => `
+          <div class="node-prop">
+            <span class="node-prop-label">${p.l}</span>
+            <span class="node-prop-value ${p.cl||''}">${p.v}</span>
+          </div>`).join('')}
+        ${n.sub ? `<div style="margin-top:6px;font-size:10px;color:#333">${n.sub}</div>` : ''}
+      </div>
+      <div class="port output" data-node="${n.id}" style="top:50%;transform:translateY(-50%)"></div>
+      <div class="port input"  data-node="${n.id}" style="top:50%;transform:translateY(-50%)"></div>
+    `;
+
+    el.addEventListener('mousedown', e => startNodeDrag(e, n));
+    el.addEventListener('click', () => selectNode(n));
+    canvas.appendChild(el);
+  });
+}
+
+function selectNode(n) {
+  // Deselect previous
+  document.querySelectorAll('.node.selected').forEach(el => el.classList.remove('selected'));
+  selectedNode = n;
+  document.getElementById('node-' + n.id).classList.add('selected');
+
+  const content = inspectorContent[n.inspector] || inspectorContent.default;
+  document.getElementById('inspector-content').innerHTML = content;
+}
+
+// ── Drag ───────────────────────────────────────────────────────────
+function startNodeDrag(e, n) {
+  if (currentTool !== 'select') return;
+  e.stopPropagation();
+  dragging = n;
+  const rect = document.getElementById('node-' + n.id).getBoundingClientRect();
+  dragOffX = (e.clientX - rect.left) / scale;
+  dragOffY = (e.clientY - rect.top)  / scale;
+}
+
+document.addEventListener('mousemove', e => {
+  if (dragging) {
+    const wrap = document.getElementById('canvas-wrap');
+    const wRect = wrap.getBoundingClientRect();
+    dragging.x = (e.clientX - wRect.left - panX) / scale - dragOffX;
+    dragging.y = (e.clientY - wRect.top  - panY) / scale - dragOffY;
+    const el = document.getElementById('node-' + dragging.id);
+    el.style.left = dragging.x + 'px';
+    el.style.top  = dragging.y + 'px';
+    renderEdges();
+    renderMinimap();
+  }
+
+  if (isPanning) {
+    panX = panOriginX + (e.clientX - panStartX);
+    panY = panOriginY + (e.clientY - panStartY);
+    applyTransform();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  dragging = null;
+  isPanning = false;
+});
+
+// ── Pan on canvas background ───────────────────────────────────────
+document.getElementById('canvas-wrap').addEventListener('mousedown', e => {
+  if (e.target === document.getElementById('canvas-wrap') ||
+      e.target.classList.contains('canvas-grid')) {
+    isPanning = true;
+    panStartX = e.clientX; panStartY = e.clientY;
+    panOriginX = panX; panOriginY = panY;
+    document.querySelectorAll('.node.selected').forEach(el => el.classList.remove('selected'));
+    selectedNode = null;
+    document.getElementById('inspector-content').innerHTML = inspectorContent.default;
+  }
+});
+
+// ── Zoom ───────────────────────────────────────────────────────────
+document.getElementById('canvas-wrap').addEventListener('wheel', e => {
+  e.preventDefault();
+  const wrap = document.getElementById('canvas-wrap');
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const delta = e.deltaY < 0 ? 0.1 : -0.1;
+  const newScale = Math.min(Math.max(scale + delta, 0.2), 2.5);
+  panX = mx - (mx - panX) * (newScale / scale);
+  panY = my - (my - panY) * (newScale / scale);
+  scale = newScale;
+  applyTransform();
+  renderMinimap();
+}, { passive: false });
+
+function zoom(delta) {
+  const wrap = document.getElementById('canvas-wrap');
+  const cx = wrap.clientWidth / 2, cy = wrap.clientHeight / 2;
+  const newScale = Math.min(Math.max(scale + delta, 0.2), 2.5);
+  panX = cx - (cx - panX) * (newScale / scale);
+  panY = cy - (cy - panY) * (newScale / scale);
+  scale = newScale;
+  applyTransform();
+  renderMinimap();
+}
+
+function applyTransform() {
+  document.getElementById('canvas').style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+  document.getElementById('zoom-label').textContent = Math.round(scale * 100) + '%';
+}
+
+function resetView() {
+  scale = 1; panX = 60; panY = 20;
+  applyTransform();
+  renderMinimap();
+}
+
+function fitView() {
+  const wrap = document.getElementById('canvas-wrap');
+  const xs = nodes.map(n => n.x); const ys = nodes.map(n => n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs) + 180;
+  const minY = Math.min(...ys), maxY = Math.max(...ys) + 100;
+  const pw = wrap.clientWidth - 80, ph = wrap.clientHeight - 80;
+  const ns = Math.min(pw / (maxX - minX), ph / (maxY - minY), 1.5);
+  scale = ns;
+  panX = (pw - (maxX - minX) * ns) / 2 + 40 - minX * ns;
+  panY = (ph - (maxY - minY) * ns) / 2 + 40 - minY * ns;
+  applyTransform();
+  renderMinimap();
+}
+
+// ── Mini map ───────────────────────────────────────────────────────
+function renderMinimap() {
+  const c = document.getElementById('minimap-canvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 140, 90);
+
+  const scaleX = 140 / 1200, scaleY = 90 / 700;
+
+  // Draw edges
+  edges.forEach(e => {
+    const from = nodes.find(n => n.id === e.from);
+    const to   = nodes.find(n => n.id === e.to);
+    if (!from || !to) return;
+    ctx.beginPath();
+    ctx.moveTo((from.x + 180) * scaleX, (from.y + 38) * scaleY);
+    ctx.lineTo(to.x * scaleX, (to.y + 38) * scaleY);
+    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 0.8; ctx.stroke();
+  });
+
+  // Draw nodes
+  const colMap = {source:'#3b82f6', filter:'#f59e0b', inference:'#8b5cf6', sink:'#22c55e'};
+  nodes.forEach(n => {
+    ctx.fillStyle = colMap[n.type] || '#444';
+    ctx.beginPath();
+    ctx.roundRect(n.x * scaleX, n.y * scaleY, 180 * scaleX, 80 * scaleY, 2);
+    ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
+  });
+
+  // Viewport indicator
+  const wrap = document.getElementById('canvas-wrap');
+  const vw = wrap.clientWidth / scale, vh = wrap.clientHeight / scale;
+  const vx = -panX / scale, vy = -panY / scale;
+  const vp = document.getElementById('minimap-vp');
+  vp.style.left   = Math.max(0, vx * scaleX) + 'px';
+  vp.style.top    = Math.max(0, vy * scaleY) + 'px';
+  vp.style.width  = Math.min(140, vw * scaleX) + 'px';
+  vp.style.height = Math.min(90, vh * scaleY) + 'px';
+}
+
+function setTool(t) {
+  currentTool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.tool-btn').classList.add('active');
+  document.getElementById('canvas-wrap').style.cursor = t === 'pan' ? 'grab' : 'default';
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+renderNodes();
+renderEdges();
+fitView();
+setTimeout(renderMinimap, 100);
+
+// Group label annotations
+function addGroupLabel(x, y, text) {
+  const el = document.createElement('div');
+  el.style.cssText = `position:absolute;left:${x}px;top:${y}px;font-size:10px;font-weight:600;
+    text-transform:uppercase;letter-spacing:0.08em;color:#2a2a2a;pointer-events:none;white-space:nowrap;`;
+  el.textContent = text;
+  document.getElementById('canvas').appendChild(el);
+}
+addGroupLabel(80, 70, 'Flow 1 — Dock inbound monitoring');
+addGroupLabel(80, 370, 'Flow 2 — Yard gate logging');
+</script>
+</body>
+</html>

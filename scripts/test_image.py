@@ -94,7 +94,7 @@ async def run(image_path: Path, task: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Test Handoff pipeline on a static image")
+    parser = argparse.ArgumentParser(description="Test Oversight pipeline on a static image")
     parser.add_argument("image", type=Path, help="Path to image file")
     parser.add_argument(
         "--task",

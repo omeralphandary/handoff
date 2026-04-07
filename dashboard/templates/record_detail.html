@@ -56,7 +56,12 @@
       </div>
       <div class="meta-item">
         <span class="meta-label">Timestamp</span>
-        <span class="meta-value">{{ record.timestamp[:19].replace('T', ' ') }}</span>
+        <span class="meta-value">
+          {{ record.timestamp[:19].replace('T', ' ') }}
+          {% if record.result.get('triggered_by') %}
+          <span style="color:#a78bfa;font-size:12px;margin-left:8px;">triggered by: {{ record.result.triggered_by | join(', ') }}</span>
+          {% endif %}
+        </span>
       </div>
       <div class="meta-item">
         <span class="meta-label">Status</span>

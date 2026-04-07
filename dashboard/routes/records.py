@@ -71,5 +71,5 @@ async def download_pdf(record_id: str, request: Request):
     return FileResponse(
         record["pdf_path"],
         media_type="application/pdf",
-        filename=f"handoff_{record_id[:8]}.pdf",
+        filename=f"oversight_{record_id[:8]}.pdf",
     )

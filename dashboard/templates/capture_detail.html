@@ -116,7 +116,12 @@
         {% if res.condition_score is defined %}
         <tr>
           <td>Condition</td>
-          <td><span class="score-badge {% if res.condition_score >= 4 %}score-high{% elif res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">{{ res.condition_score }}/5</span></td>
+          <td>
+            <span class="score-badge {% if res.condition_score >= 4 %}score-high{% elif res.condition_score >= 2 %}score-mid{% else %}score-low{% endif %}">{{ res.condition_score }}/5</span>
+            {% if res.passed is defined %}
+              <span class="badge {% if res.passed %}badge-pass{% else %}badge-fail{% endif %}" style="margin-left:8px;vertical-align:middle;">{% if res.passed %}pass{% else %}fail{% endif %}</span>
+            {% endif %}
+          </td>
         </tr>
         {% endif %}
 
